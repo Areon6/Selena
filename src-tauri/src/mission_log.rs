@@ -4,6 +4,7 @@
 //! Pre-seeded entries across Days 1..75 represent simulated sample history with
 //! intentional empty days to demonstrate `NO SIGNAL` and retroactive logging.
 
+use crate::lexicon::{self, Sentiment};
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
 use tauri::{AppHandle, Manager};
@@ -58,6 +59,7 @@ pub struct DayEntry {
     pub tags: Option<Vec<String>>,
     pub note: Option<String>,
     pub themes: Option<Vec<String>>,
+    pub sentiment: Option<Sentiment>,
 
     // Computed illustrative composite score
     pub level: Option<DayLevel>,
@@ -228,6 +230,18 @@ fn enrich(mut e: DayEntry) -> DayEntry {
     let (level, rank) = compute_level_rank(&e);
     e.level = Some(level);
     e.rank = Some(rank);
+
+    let has_text = e.note.as_ref().is_some_and(|n| !n.trim().is_empty());
+    let has_tags = e.tags.as_ref().is_some_and(|t| !t.is_empty());
+    if has_text || has_tags {
+        let lex = lexicon::analyze(e.note.as_deref(), e.tags.as_deref().unwrap_or(&[]));
+        e.themes = Some(lex.themes);
+        e.sentiment = Some(lex.sentiment);
+    } else {
+        e.themes = Some(Vec::new());
+        e.sentiment = None;
+    }
+
     e
 }
 
@@ -313,7 +327,8 @@ pub fn generate_sample_history() -> Vec<DayEntry> {
                 stress: Some(s.9),
                 tags: Some(s.10.iter().map(|t| (*t).to_string()).collect()),
                 note: Some(s.11.to_string()),
-                themes: Some(Vec::new()),
+                themes: None,
+                sentiment: None,
                 level: None,
                 rank: None,
             })

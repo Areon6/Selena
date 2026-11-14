@@ -15,6 +15,8 @@ use std::sync::{Mutex, PoisonError};
 use std::time::Instant;
 use tauri::{AppHandle, State};
 
+mod analytics;
+mod lexicon;
 mod mission_log;
 mod profile;
 
@@ -717,7 +719,8 @@ pub fn run() {
             profile::reset_body_profile,
             mission_log::get_mission_log,
             mission_log::save_day_entry,
-            mission_log::reset_mission_log
+            mission_log::reset_mission_log,
+            analytics::get_mind_analytics
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
