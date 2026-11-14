@@ -1,3 +1,5 @@
+import type { Basis } from "./sources";
+
 export type Level = "nominal" | "watch" | "critical";
 
 export interface Vitals {
@@ -22,6 +24,8 @@ export interface BodyZone {
   level: Level;
   metric: string;
   note: string;
+  sources: string[];
+  basis: Basis;
 }
 
 export interface HazardStatus {
@@ -30,6 +34,8 @@ export interface HazardStatus {
   level: Level;
   value: string;
   detail: string;
+  sources: string[];
+  basis: Basis;
 }
 
 export interface Task {
