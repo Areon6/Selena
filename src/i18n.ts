@@ -1,0 +1,201 @@
+export type Lang = "en" | "ru";
+
+export interface ZoneItem {
+  name: string;
+  note: string;
+  why: string;
+  action: string;
+}
+
+export const I18N = {
+  en: {
+    systemTitle: "On-board clinical decision support",
+    mission: "Mission",
+    day: "Day",
+    mode: "Mode",
+    autonomous: "Autonomous",
+    linked: "Linked",
+    levels: {
+      nominal: "Nominal",
+      watch: "Watch",
+      critical: "Critical",
+    },
+    emergencyProtocol: "Emergency protocol",
+    alertTitle: "Solar particle event",
+    alertSummary: "Dose rate is far above background. Shelter protocol is active.",
+    alertSteps: [
+      "Move every crew member to the storm shelter, the most shielded volume.",
+      "Stop EVA and non-essential work. Secure loose equipment.",
+      "Keep personal dosimeters on and log the readings.",
+      "Stay until the dose rate falls below the release threshold.",
+      "Queue a report for Houston. It arrives after the delay, so continue without waiting.",
+    ],
+    fiveHazards: "NASA HRP · five hazards",
+    earthLink: "Earth link",
+    houston: "Houston",
+    crew: "Crew",
+    commsDelayText: (min: number) => `${min} min one-way. All assessments run on board, with no network.`,
+    demoControls: "Demo controls",
+    simulateSolar: "Simulate solar particle event",
+    resetScenario: "Reset scenario",
+    bodyMapTitle: "Body map · select a region",
+    vitals: {
+      heartRate: "Heart rate",
+      bloodPressure: "Blood pressure",
+      spo2: "SpO₂",
+      bodyTemp: "Body temp",
+      sleep: "Sleep",
+      doseRate: "Dose rate",
+    },
+    selectedRegion: "Selected region",
+    whyItMatters: "Why it matters",
+    whatToDo: "What to do",
+    countermeasures: "Countermeasures",
+    zones: {
+      brain: {
+        name: "Brain · Sleep",
+        note: "Short sleep under isolation erodes judgment. Keep a fixed sleep window.",
+        why: "Isolation, confinement and shifted light cycles erode sleep, and short sleep degrades judgment and mood.",
+        action: "Hold a fixed sleep window, log mood daily, and tell the crew if two nights in a row come up short.",
+      },
+      eyes: {
+        name: "Eyes · SANS",
+        note: "Headward fluid shift can swell the optic disc. The baseline scan is your reference.",
+        why: "Without gravity, fluid shifts toward the head. It can swell the optic disc and flatten the back of the eye (SANS).",
+        action: "Run the optic nerve ultrasound on schedule, compare with your baseline, and report any new blurring.",
+      },
+      heart: {
+        name: "Cardiovascular",
+        note: "Resting values inside the planned range. Monitored for orthostatic deconditioning.",
+        why: "The heart works less without gravity and pressure regulation drifts. On long missions that matters.",
+        action: "Take pressure and pulse at rest at the same time each day. Keep the aerobic sessions in the plan.",
+      },
+      lungs: {
+        name: "Lungs · Air",
+        note: "Cabin CO₂ builds up before any alarm. Headache or drowsiness is the early sign.",
+        why: "A sealed cabin lets CO₂ build up. Headache and drowsiness show up before most alarms do.",
+        action: "Check ppCO₂ near your sleep station, move the air, and report sustained readings above watch level.",
+      },
+      bones: {
+        name: "Bone & Muscle",
+        note: "Unloaded bone loses mineral. Resistive exercise is the main countermeasure.",
+        why: "An unloaded skeleton loses mineral, around 1% a month in the hips and spine without countermeasures.",
+        action: "Complete the ARED sessions and keep protein and vitamin D on plan.",
+      },
+      radiation: {
+        name: "Radiation",
+        note: "Background cosmic rays monitored. Critical shelter protocols standing by.",
+        why: "Cosmic rays are constant. Solar particle events arrive within hours and can deliver a large dose fast.",
+        action: "In a storm, go to the shielded shelter, follow the protocol and log the dose.",
+      },
+    } as Record<string, ZoneItem>,
+    hazards: {
+      radiation: { name: "Space Radiation", detail: "Galactic cosmic rays baseline" },
+      isolation: { name: "Isolation & Confinement", detail: "Circadian index" },
+      distance: { name: "Distance from Earth", detail: "Autonomous engine active" },
+      gravity: { name: "Altered Gravity", detail: "Bone loading & SANS exam" },
+      environment: { name: "Hostile Closed Environment", detail: "Cabin atmosphere scrubbing" },
+    },
+    tasks: {
+      ared: { title: "ARED resistive exercise", detail: "Squat, deadlift and heel-raise sets to counter bone demineralization." },
+      optic_scan: { title: "Optic nerve ultrasound", detail: "Ultrasound self-scan of the optic nerve sheath (SANS)." },
+      bp_check: { title: "Blood pressure and pulse", detail: "Seated, at rest, same time every day." },
+      sleep_log: { title: "Sleep and mood log", detail: "Log hours slept and 1–5 psychological wellness score." },
+    }
+  },
+  ru: {
+    systemTitle: "Бортовая система поддержки клинических решений",
+    mission: "Миссия",
+    day: "День",
+    mode: "Режим",
+    autonomous: "Автономный",
+    linked: "Связь с ЦУП",
+    levels: {
+      nominal: "Норма",
+      watch: "Внимание",
+      critical: "Тревога",
+    },
+    emergencyProtocol: "Аварийный протокол",
+    alertTitle: "Солнечная вспышка (SPE)",
+    alertSummary: "Мощность дозы критически превысила норму. Активирован протокол штормового убежища.",
+    alertSteps: [
+      "Перевести всех членов экипажа в штормовое убежище (наиболее защищенный отсек).",
+      "Остановить выходы в открытый космос (ВКД) и зафиксировать незакрепленное оборудование.",
+      "Надеть индивидуальные дозиметры и вести журнал показаний радиации.",
+      "Оставаться в убежище до снижения мощности дозы ниже критического порога.",
+      "Отправить отчет в Хьюстон (ЦУП). Из-за задержки в 22 мин продолжать действовать автономно.",
+    ],
+    fiveHazards: "NASA HRP · 5 космических угроз",
+    earthLink: "Канал связи с Землей",
+    houston: "Хьюстон (ЦУП)",
+    crew: "Экипаж",
+    commsDelayText: (min: number) => `${min} мин в одну сторону. Все расчеты производятся бортовым ядром Rust без сети.`,
+    demoControls: "Управление симуляцией",
+    simulateSolar: "Вызвать солнечную вспышку (SPE)",
+    resetScenario: "Сбросить сценарий",
+    bodyMapTitle: "Анатомическая карта · выберите зону",
+    vitals: {
+      heartRate: "Пульс",
+      bloodPressure: "Давление",
+      spo2: "Кислород SpO₂",
+      bodyTemp: "Темп. тела",
+      sleep: "Сон",
+      doseRate: "Мощность дозы",
+    },
+    selectedRegion: "Выбранная зона",
+    whyItMatters: "Почему это важно",
+    whatToDo: "Протокол действий",
+    countermeasures: "Предписанные меры",
+    zones: {
+      brain: {
+        name: "Мозг · Сон и психика",
+        note: "Недосып в изоляции разрушает когнитивные функции. Соблюдайте режим сна.",
+        why: "Изоляция и искусственные световые циклы сбивают циркадный ритм. Депривация сна резко ухудшает рассудительность и настроение.",
+        action: "Держите фиксированное окно сна, отмечайте настроение ежедневно и доложите экипажу, если не спали 2 ночи подряд.",
+      },
+      eyes: {
+        name: "Глаза · Синдром SANS",
+        note: "Приток жидкости к черепу ведет к отеку зрительного диска. Сверьтесь с базой.",
+        why: "В невесомости кровь и жидкости смещаются к голове. Это приводит к отеку диска зрительного нерва и уплощению сетчатки (синдром SANS).",
+        action: "Выполните УЗИ зрительного нерва по графику, сравните со снимком до полета и доложите при любом размытии зрения.",
+      },
+      heart: {
+        name: "Сердечно-сосудистая",
+        note: "Показатели покоя под контролем. Мониторинг риска сосудистой детренированности.",
+        why: "В невесомости сердцу легче качать кровь, миокард теряет тонус, а сосудистая регуляция смещается.",
+        action: "Измеряйте давление и пульс в покое в одно и то же время. Выполняйте аэробные сессии на велоэргометре.",
+      },
+      lungs: {
+        name: "Легкие · Состав воздуха",
+        note: "CO₂ накапливается в отсеках незаметно. Головная боль — первый симптом.",
+        why: "В замкнутом объеме углекислый газ скапливается у спальных зон. Головная боль и вялость начинаются до тревожных сирен.",
+        action: "Проверьте концентрацию ppCO₂ у спального места, включите принудительный обдув и доложите при росте уровня.",
+      },
+      bones: {
+        name: "Кости и мышцы",
+        note: "Кости без гравитации теряют кальций. Силовые тренировки жизненно важны.",
+        why: "Без нагрузки скелет теряет минералы (около 1% плотности костей в месяц), а мышцы атрофируются.",
+        action: "Выполните силовую тренировку ARED (приседания, тяги) и соблюдайте нормы белка и витамина D.",
+      },
+      radiation: {
+        name: "Радиация",
+        note: "Фон глубокого космоса под контролем. Протокол штормового убежища в боевой готовности.",
+        why: "Космические лучи облучают непрерывно. Солнечные вспышки приходят за часы и дают опасную дозу в сжатые сроки.",
+        action: "При вспышке немедленно эвакуируйтесь в экранированный штормовой отсек, залогируйте дозиметр.",
+      },
+    } as Record<string, ZoneItem>,
+    hazards: {
+      radiation: { name: "Космическая радиация", detail: "Фон галактических лучей" },
+      isolation: { name: "Изоляция и замкнутость", detail: "Циркадные циклы" },
+      distance: { name: "Удаленность от Земли", detail: "Автономный анализ Rust" },
+      gravity: { name: "Измененная гравитация", detail: "Нагрузка на кости и зрение" },
+      environment: { name: "Враждебная замкнутая среда", detail: "Очистка атмосферы СЖО" },
+    },
+    tasks: {
+      ared: { title: "Силовая тренировка ARED", detail: "Приседания и становая тяга для защиты костей от остеопении." },
+      optic_scan: { title: "УЗИ зрительного нерва", detail: "Самостоятельное ультразвуковое сканирование сетчатки (SANS)." },
+      bp_check: { title: "Замер давления и пульса", detail: "В сидячем положении, в состоянии покоя, строго по графику." },
+      sleep_log: { title: "Журнал сна и настроения", detail: "Запись часов сна и оценка психологического самочувствия 1–5." },
+    }
+  }
+};
