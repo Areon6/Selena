@@ -86,14 +86,14 @@ export const I18N = {
       bones: {
         name: "Bone & Muscle",
         note: "Unloaded bone loses mineral. Resistive exercise is the main countermeasure.",
-        why: "An unloaded skeleton loses mineral in weight-bearing bones without countermeasures.",
+        why: "Without gravity and countermeasures, an unloaded skeleton loses about 1–1.5% of its bone density per month on 4–6 month missions.",
         action: "Complete the ARED sessions and keep protein and vitamin D on plan.",
       },
       radiation: {
         name: "Radiation",
         note: "Background cosmic rays monitored. Critical shelter protocols standing by.",
         why: "Cosmic rays are constant. Solar particle events arrive within hours and can deliver a large dose fast.",
-        action: "In a storm, go to the shielded shelter, follow the protocol and log the dose.",
+        action: "In a storm, go to the shielded shelter, follow the protocol and log personal dosimeter readings.",
       },
     } as Record<string, ZoneItem>,
     hazards: {
@@ -188,7 +188,7 @@ export const I18N = {
       bones: {
         name: "Кости и мышцы",
         note: "Кости без гравитации теряют кальций. Силовые тренировки жизненно важны.",
-        why: "Без нагрузки скелет теряет минералы в опорных костях, а мышцы атрофируются.",
+        why: "Без гравитации и тренировок скелет теряет в среднем 1–1.5% плотности кости в месяц на миссиях 4–6 месяцев.",
         action: "Выполните силовую тренировку ARED (приседания, тяги) и соблюдайте нормы белка и витамина D.",
       },
       radiation: {

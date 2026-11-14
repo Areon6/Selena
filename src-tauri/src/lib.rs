@@ -1,8 +1,8 @@
 //! Selena — autonomous on-board health monitor (demo build).
 //!
-//! Telemetry is simulated. Radiation career limit (600 mSv) and habitable ppCO2
-//! limit (3.0 mmHg) follow NASA-STD-3001; remaining thresholds are tagged `illustrative`
-//! or `mixed` in each BodyZone / HazardStatus.
+//! Telemetry is simulated. Radiation career limit (600 mSv), habitable ppCO2
+//! limit (3.0 mmHg) and NASA Ames sleep target (>= 7.0 h) follow NASA docs;
+//! remaining thresholds are tagged `illustrative` or `mixed`.
 //!
 //! Sleep, mood and blood pressure are NOT simulated: they come from the crew Check-in
 //! (log_sleep / log_bp). Entries live in memory for the session and reset with the scenario.
@@ -299,9 +299,9 @@ fn build_report(inner: &Inner) -> HealthReport {
     let lungs_lv = low_is_bad(spo2, 95.0, 90.0) // SpO2: illustrative
         .max(high_is_bad(co2, CO2_LIMIT_MMHG, CO2_SYMPTOM_MMHG));
 
-    // No sleep log yet = overdue = Watch. Thresholds are illustrative.
+    // No sleep log yet = overdue = Watch. 7.0 h target from NASA Ames; 5.0 h and mood thresholds are illustrative.
     let brain_lv = match (sleep_h, mood) {
-        (Some(h), Some(m)) => low_is_bad(h, 6.5, 5.0).max(low_is_bad(m as f64, 2.0, 1.0)),
+        (Some(h), Some(m)) => low_is_bad(h, 7.0, 5.0).max(low_is_bad(m as f64, 2.0, 1.0)),
         _ => Level::Watch,
     };
     let eyes_lv = if done("optic_scan") { Level::Nominal } else { Level::Watch };
@@ -329,8 +329,8 @@ fn build_report(inner: &Inner) -> HealthReport {
             level: brain_lv,
             metric: brain_metric,
             note: "Short sleep under isolation erodes judgment. Keep a fixed sleep window.".into(),
-            sources: vec!["risk-sleep", "risk-behavior"],
-            basis: "illustrative",
+            sources: vec!["risk-sleep", "risk-behavior", "ames-sleep"],
+            basis: "mixed",
         },
         BodyZone {
             id: "eyes",
@@ -410,8 +410,8 @@ fn build_report(inner: &Inner) -> HealthReport {
             level: isolation_lv,
             value: sleep_h.map_or("Sleep —".to_string(), |h| format!("Sleep {:.1} h", h)),
             detail: mood.map_or("Mood —".to_string(), |m| format!("Mood {}/5", m)),
-            sources: vec!["haz-isolation", "risk-sleep"],
-            basis: "illustrative",
+            sources: vec!["haz-isolation", "risk-sleep", "ames-sleep"],
+            basis: "mixed",
         },
         HazardStatus {
             id: "distance",

@@ -19,6 +19,11 @@ export interface TabletTexts {
     leanMass: string;
     ffmi: string;
     bmr: string;
+    energyRef: string;
+    evaExtra: string;
+    bmiNote: string;
+    source: string;
+    checked: string;
     categories: Record<BmiCategory, string>;
     apply: string;
     applying: string;
@@ -95,6 +100,11 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
       leanMass: "Lean mass",
       ffmi: "Lean mass index",
       bmr: "Resting energy (est.)",
+      energyRef: "Crew energy reference",
+      evaExtra: "EVA extra energy",
+      bmiNote: "BMI classes are standard clinical cut-offs, not NASA limits. Body metrics are informational and do not change any status.",
+      source: "Source",
+      checked: "Checked",
       categories: { under: "Underweight", normal: "Normal", over: "Overweight", obese1: "Obesity I", obese2: "Obesity II", obese3: "Obesity III" },
       apply: "Apply & save",
       applying: "Saving…",
@@ -116,15 +126,9 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
       zonesTitle: "Zones · telemetry and profile",
       noFactors: "No profile-specific factors.",
       factors: {
-        underweight: "Low BMI: less reserve against bone and muscle loss.",
-        obesity: "High BMI or body fat: higher cardiovascular load during exercise and stress.",
-        lowFat: "Low body fat: small energy reserve under mission workload.",
-        lowLean: "Low lean mass: little muscle and bone reserve before resistive exercise begins.",
-        highLean: "High lean mass: expect higher ARED loads and protein needs.",
-        highBmr: "High resting energy use: more O₂ use and CO₂ output per person in a sealed cabin.",
-        spinal: "Spinal elongation in microgravity is expected: re-check height and suit / seat fit.",
+        spinal: "Spinal elongation in microgravity: height can increase by up to 3% (about +{cm} cm for you). Re-check height and suit / seat fit.",
       },
-      checkDisclaimer: "Demo heuristics, not medical advice. Thresholds are placeholders pending NASA-STD-3001 / flight surgeon criteria.",
+      checkDisclaimer: "Not medical advice. Zone statuses mix NASA limits with illustrative thresholds, marked per zone.",
     },
     checkin: {
       sleepHours: "Hours slept",
@@ -183,6 +187,11 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
       leanMass: "Безжировая масса",
       ffmi: "Индекс безжировой массы",
       bmr: "Энергия покоя (оц.)",
+      energyRef: "Норма энергии экипажа",
+      evaExtra: "Добавка за ВКД",
+      bmiNote: "Классы ИМТ это стандартные клинические границы, а не нормы NASA. Параметры тела справочные и статус не меняют.",
+      source: "Источник",
+      checked: "Проверено",
       categories: { under: "Дефицит массы", normal: "Норма", over: "Избыток массы", obese1: "Ожирение I", obese2: "Ожирение II", obese3: "Ожирение III" },
       apply: "Применить и сохранить",
       applying: "Сохранение…",
@@ -204,15 +213,9 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
       zonesTitle: "Зоны · телеметрия и профиль",
       noFactors: "Особых факторов по профилю нет.",
       factors: {
-        underweight: "Низкий ИМТ: меньше запас прочности против потери костной и мышечной массы.",
-        obesity: "Высокий ИМТ или % жира: выше сердечно-сосудистая нагрузка при тренировках и стрессе.",
-        lowFat: "Мало жира: небольшой энергетический запас при миссионной нагрузке.",
-        lowLean: "Мало безжировой массы: малый запас мышц и костей до начала силовых тренировок.",
-        highLean: "Много безжировой массы: ожидайте более высокие нагрузки ARED и потребность в белке.",
-        highBmr: "Высокий расход энергии в покое: больше потребление O₂ и выдох CO₂ на человека в замкнутом отсеке.",
-        spinal: "В невесомости ожидается удлинение позвоночника: перепроверьте рост и посадку скафандра / кресла.",
+        spinal: "В невесомости позвоночник удлиняется: рост может вырасти до 3 % (для вас около +{cm} см). Перепроверьте рост и посадку скафандра / кресла.",
       },
-      checkDisclaimer: "Демонстрационные эвристики, не медицинская рекомендация. Пороги условные, до сверки с NASA-STD-3001 / полётным врачом.",
+      checkDisclaimer: "Не медицинская рекомендация. Статусы зон смешивают нормативы NASA и условные пороги, помеченные у каждой зоны.",
     },
     checkin: {
       sleepHours: "Часов сна",

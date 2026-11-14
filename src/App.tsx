@@ -343,8 +343,8 @@ export default function App() {
               </div>
               <ul className="src-list">
                 {zoneSources.map((s) => (
-                  <li key={s.label}>
-                    <span>{s.label}</span>
+                  <li key={s.title}>
+                    <span>{s.title}</span>
                     <span className="src-url">{s.url}</span>
                   </li>
                 ))}
