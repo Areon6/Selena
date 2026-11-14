@@ -67,6 +67,7 @@
 .tb-group[data-level] { border-left: 2px solid var(--c); }
 
 .tb-seg { display: grid; grid-template-columns: repeat(3, 1fr); }
+.tb-seg5 { grid-template-columns: repeat(5, 1fr); }
 .tb-seg button {
   padding: 8px 4px;
   background: transparent;
@@ -117,6 +118,7 @@
 
 .tb-warn { list-style: none; margin: 0; padding: 10px 12px; border: 1px solid rgba(232, 175, 78, 0.5); background: var(--amber-s); color: var(--amber); font-size: 11px; display: grid; gap: 4px; }
 .tb-warn-box { padding: 8px 12px; border: 1px solid rgba(232, 175, 78, 0.5); background: var(--amber-s); color: var(--amber); font-size: 11px; }
+.tb-err { border-color: rgba(240, 96, 63, 0.55); background: var(--red-s); color: var(--red); }
 
 .tb-status { display: flex; align-items: center; gap: 8px; font: 500 10px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--teal); }
 .tb-status[data-dirty="true"] { color: var(--amber); }

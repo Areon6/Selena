@@ -36,6 +36,20 @@ export interface TabletTexts {
     factors: Record<string, string>;
     checkDisclaimer: string;
   };
+  checkin: {
+    sleepHours: string;
+    mood: string;
+    systolic: string;
+    diastolic: string;
+    pulse: string;
+    save: string;
+    saving: string;
+    last: string;
+    none: string;
+    justNow: string;
+    ago: (min: number) => string;
+    hint: string;
+  };
 }
 
 export const TABLET_I18N: Record<Lang, TabletTexts> = {
@@ -51,6 +65,14 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
         modules: {
           enterParams: { title: "Enter parameters", desc: "Sex, height, weight, body fat and build — applied to the 3D model" },
           checkState: { title: "Check condition", desc: "Summary of body, zones and risks using your profile and telemetry" },
+        },
+      },
+      checkIn: {
+        title: "Check-in",
+        desc: "Log sleep, mood and blood pressure",
+        modules: {
+          sleepMood: { title: "Sleep and mood", desc: "Hours slept and a 1–5 mood score" },
+          bloodPressure: { title: "Blood pressure", desc: "Seated, at rest: pressure and pulse" },
         },
       },
     },
@@ -104,6 +126,20 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
       },
       checkDisclaimer: "Demo heuristics, not medical advice. Thresholds are placeholders pending NASA-STD-3001 / flight surgeon criteria.",
     },
+    checkin: {
+      sleepHours: "Hours slept",
+      mood: "Mood",
+      systolic: "Systolic",
+      diastolic: "Diastolic",
+      pulse: "Pulse",
+      save: "Save entry",
+      saving: "Saving…",
+      last: "Last entry",
+      none: "No entry yet",
+      justNow: "just now",
+      ago: (m) => `${m} min ago`,
+      hint: "Kept on board for this session only. Resets with the scenario. Thresholds are illustrative.",
+    },
   },
   ru: {
     open: "Планшет",
@@ -117,6 +153,14 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
         modules: {
           enterParams: { title: "Ввести параметры", desc: "Пол, рост, вес, % жира и фигура — применяются к 3D-модели" },
           checkState: { title: "Проверить состояние", desc: "Сводка по телу, зонам и рискам с учётом профиля и телеметрии" },
+        },
+      },
+      checkIn: {
+        title: "Check-in",
+        desc: "Запись сна, самочувствия и давления",
+        modules: {
+          sleepMood: { title: "Сон и самочувствие", desc: "Часы сна и оценка 1–5" },
+          bloodPressure: { title: "Давление", desc: "Сидя, в покое: давление и пульс" },
         },
       },
     },
@@ -169,6 +213,20 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
         spinal: "В невесомости ожидается удлинение позвоночника: перепроверьте рост и посадку скафандра / кресла.",
       },
       checkDisclaimer: "Демонстрационные эвристики, не медицинская рекомендация. Пороги условные, до сверки с NASA-STD-3001 / полётным врачом.",
+    },
+    checkin: {
+      sleepHours: "Часов сна",
+      mood: "Самочувствие",
+      systolic: "Систолическое",
+      diastolic: "Диастолическое",
+      pulse: "Пульс",
+      save: "Сохранить запись",
+      saving: "Сохранение…",
+      last: "Последняя запись",
+      none: "Записей пока нет",
+      justNow: "только что",
+      ago: (m) => `${m} мин назад`,
+      hint: "Хранится на борту до конца сессии. Сбрасывается вместе со сценарием. Пороги условные.",
     },
   },
 };

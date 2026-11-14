@@ -8,8 +8,8 @@ export interface Vitals {
   diastolicMmhg: number;
   spo2Pct: number;
   bodyTempC: number;
-  sleepHours: number;
-  moodScore: number;
+  sleepHours: number | null;
+  moodScore: number | null;
 }
 
 export interface Environment {
@@ -53,6 +53,19 @@ export interface Alert {
   steps: string[];
 }
 
+export interface SleepLog {
+  hours: number;
+  mood: number;
+  agoS: number;
+}
+
+export interface BpLog {
+  systolic: number;
+  diastolic: number;
+  pulse: number;
+  agoS: number;
+}
+
 export interface HealthReport {
   missionDay: number;
   commsDelayMin: number;
@@ -64,41 +77,32 @@ export interface HealthReport {
   zones: BodyZone[];
   hazards: HazardStatus[];
   tasks: Task[];
+  lastSleep: SleepLog | null;
+  lastBp: BpLog | null;
 }
 
-/* ───────────── Body profile (mirrors `BodyProfile` in src-tauri/src/profile.rs) ───────────── */
-
-/** Biological profile that drives skeleton / torso proportions. `neutral` = the original mannequin. */
 export type Sex = "neutral" | "male" | "female";
+
+export type BmiCategory = "under" | "normal" | "over" | "obese1" | "obese2" | "obese3";
 
 export interface BodyProfile {
   sex: Sex;
   heightCm: number;
   weightKg: number;
   bodyFatPct: number;
-  /** 0..1, 0.5 = reference mannequin */
   muscularity: number;
-  /** multiplier, 1 = reference */
   shoulderWidth: number;
-  /** multiplier, 1 = reference */
   waist: number;
-  /** multiplier, 1 = reference */
   hips: number;
 }
-
-export type BmiCategory = "under" | "normal" | "over" | "obese1" | "obese2" | "obese3";
 
 export interface BodyMetrics {
   bmi: number;
   bmiCategory: BmiCategory;
-  /** Mosteller, m² */
   bsaMosteller: number;
-  /** Du Bois, m² */
   bsaDuBois: number;
   fatMassKg: number;
   leanMassKg: number;
-  /** lean mass / height² */
   ffmi: number;
-  /** Katch–McArdle resting energy estimate, kcal/day */
   bmrKcal: number;
 }

@@ -477,7 +477,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
     let width = container.clientWidth || 400;
     let height = container.clientHeight || 560;
 
-    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
 
     let spec = deriveAnatomy(initialProfileRef.current);
     let builtKey = profileKey(initialProfileRef.current);
@@ -496,7 +496,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
     // 2. RENDERER
 
     const renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: false,
       powerPreference: "high-performance",
       alpha: false,
     });
@@ -675,33 +675,47 @@ export const BodyModel: React.FC<BodyModelProps> = ({
     };
 
     let moveQueued = false;
+    let pickRaf = 0;
+    let lastPickAt = 0;
     let lastEvent: PointerEvent | null = null;
     let lastHover: string | null = null;
+
+    const runPick = (now: number) => {
+      if (!lastEvent) {
+        moveQueued = false;
+        return;
+      }
+      if (now - lastPickAt < 50) {
+        pickRaf = requestAnimationFrame(runPick);
+        return;
+      }
+      lastPickAt = now;
+      moveQueued = false;
+
+      updateMouse(lastEvent);
+      const hit = pick();
+      const id = hit ? hit.id : null;
+
+      if (id !== lastHover) {
+        lastHover = id;
+        setHoveredZone(id);
+        dom.style.cursor = id ? "pointer" : "grab";
+        constellationMat.uniforms.uHoveredZone.value = hit ? hit.zoneNum : -1.0;
+      }
+    };
 
     const onPointerMove = (e: PointerEvent) => {
       if (e.buttons !== 0) return; // orbiting
       lastEvent = e;
       if (moveQueued) return;
       moveQueued = true;
-
-      requestAnimationFrame(() => {
-        moveQueued = false;
-        if (!lastEvent) return;
-
-        updateMouse(lastEvent);
-        const hit = pick();
-        const id = hit ? hit.id : null;
-
-        if (id !== lastHover) {
-          lastHover = id;
-          setHoveredZone(id);
-          dom.style.cursor = id ? "pointer" : "grab";
-          constellationMat.uniforms.uHoveredZone.value = hit ? hit.zoneNum : -1.0;
-        }
-      });
+      pickRaf = requestAnimationFrame(runPick);
     };
 
     const onPointerLeave = () => {
+      cancelAnimationFrame(pickRaf);
+      moveQueued = false;
+      lastEvent = null;
       lastHover = null;
       setHoveredZone(null);
       constellationMat.uniforms.uHoveredZone.value = -1.0;
@@ -795,6 +809,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
 
     return () => {
       cancelAnimationFrame(reqId);
+      cancelAnimationFrame(pickRaf);
       resizeObserver.disconnect();
 
       applyGeometryRef.current = () => {};

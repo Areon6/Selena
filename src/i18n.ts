@@ -51,6 +51,13 @@ export const I18N = {
     whyItMatters: "Why it matters",
     whatToDo: "What to do",
     countermeasures: "Countermeasures",
+    sources: "Sources",
+    checked: "Checked",
+    basis: {
+      nasa: "NASA standard",
+      mixed: "NASA + illustrative",
+      illustrative: "Illustrative threshold",
+    },
     zones: {
       brain: {
         name: "Brain · Sleep",
@@ -79,7 +86,7 @@ export const I18N = {
       bones: {
         name: "Bone & Muscle",
         note: "Unloaded bone loses mineral. Resistive exercise is the main countermeasure.",
-        why: "An unloaded skeleton loses mineral, around 1% a month in the hips and spine without countermeasures.",
+        why: "An unloaded skeleton loses mineral in weight-bearing bones without countermeasures.",
         action: "Complete the ARED sessions and keep protein and vitamin D on plan.",
       },
       radiation: {
@@ -91,17 +98,17 @@ export const I18N = {
     } as Record<string, ZoneItem>,
     hazards: {
       radiation: { name: "Space Radiation", detail: "Galactic cosmic rays baseline" },
-      isolation: { name: "Isolation & Confinement", detail: "Circadian index" },
+      isolation: { name: "Isolation and Confinement", detail: "Circadian index" },
       distance: { name: "Distance from Earth", detail: "Autonomous engine active" },
-      gravity: { name: "Altered Gravity", detail: "Bone loading & SANS exam" },
-      environment: { name: "Hostile Closed Environment", detail: "Cabin atmosphere scrubbing" },
+      gravity: { name: "Gravity Fields", detail: "Bone loading & SANS exam" },
+      environment: { name: "Hostile/Closed Environments", detail: "Limit 3.0 mmHg · NASA-STD-3001 V2 6004" },
     },
     tasks: {
       ared: { title: "ARED resistive exercise", detail: "Squat, deadlift and heel-raise sets to counter bone demineralization." },
       optic_scan: { title: "Optic nerve ultrasound", detail: "Ultrasound self-scan of the optic nerve sheath (SANS)." },
-      bp_check: { title: "Blood pressure and pulse", detail: "Seated, at rest, same time every day." },
-      sleep_log: { title: "Sleep and mood log", detail: "Log hours slept and 1–5 psychological wellness score." },
-    }
+      bp_check: { title: "Blood pressure and pulse", detail: "Seated, at rest. Log it in Tablet → Check-in." },
+      sleep_log: { title: "Sleep and mood log", detail: "Hours slept and a 1–5 mood score. Log it in Tablet → Check-in." },
+    },
   },
   ru: {
     systemTitle: "Бортовая система поддержки клинических решений",
@@ -146,6 +153,13 @@ export const I18N = {
     whyItMatters: "Почему это важно",
     whatToDo: "Протокол действий",
     countermeasures: "Предписанные меры",
+    sources: "Источники",
+    checked: "Проверено",
+    basis: {
+      nasa: "Стандарт NASA",
+      mixed: "NASA + условно",
+      illustrative: "Условный порог",
+    },
     zones: {
       brain: {
         name: "Мозг · Сон и психика",
@@ -174,7 +188,7 @@ export const I18N = {
       bones: {
         name: "Кости и мышцы",
         note: "Кости без гравитации теряют кальций. Силовые тренировки жизненно важны.",
-        why: "Без нагрузки скелет теряет минералы (около 1% плотности костей в месяц), а мышцы атрофируются.",
+        why: "Без нагрузки скелет теряет минералы в опорных костях, а мышцы атрофируются.",
         action: "Выполните силовую тренировку ARED (приседания, тяги) и соблюдайте нормы белка и витамина D.",
       },
       radiation: {
@@ -188,14 +202,14 @@ export const I18N = {
       radiation: { name: "Космическая радиация", detail: "Фон галактических лучей" },
       isolation: { name: "Изоляция и замкнутость", detail: "Циркадные циклы" },
       distance: { name: "Удаленность от Земли", detail: "Автономный анализ Rust" },
-      gravity: { name: "Измененная гравитация", detail: "Нагрузка на кости и зрение" },
-      environment: { name: "Враждебная замкнутая среда", detail: "Очистка атмосферы СЖО" },
+      gravity: { name: "Гравитационные поля", detail: "Нагрузка на кости и зрение" },
+      environment: { name: "Враждебная замкнутая среда", detail: "Лимит 3.0 mmHg · NASA-STD-3001 V2 6004" },
     },
     tasks: {
       ared: { title: "Силовая тренировка ARED", detail: "Приседания и становая тяга для защиты костей от остеопении." },
       optic_scan: { title: "УЗИ зрительного нерва", detail: "Самостоятельное ультразвуковое сканирование сетчатки (SANS)." },
-      bp_check: { title: "Замер давления и пульса", detail: "В сидячем положении, в состоянии покоя, строго по графику." },
-      sleep_log: { title: "Журнал сна и настроения", detail: "Запись часов сна и оценка психологического самочувствия 1–5." },
-    }
-  }
+      bp_check: { title: "Замер давления и пульса", detail: "Сидя, в покое. Внесите в Планшет → Check-in." },
+      sleep_log: { title: "Журнал сна и настроения", detail: "Часы сна и оценка 1–5. Внесите в Планшет → Check-in." },
+    },
+  },
 };

@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 import type { HealthReport, Level } from "./types";
 import { I18N, type Lang } from "./i18n";
+import { CHECKED, SOURCES } from "./sources";
 import BodyModel from "./components/BodyModelV3";
 import { useBodyProfile } from "./hooks/useBodyProfile";
 import { Tablet } from "./tablet/Tablet";
@@ -56,7 +57,7 @@ function Cell(props: {
       <div className="eyebrow">{props.label}</div>
       <div className="cell-value">
         {props.value}
-        <span className="unit">{props.unit}</span>
+        {props.unit && <span className="unit">{props.unit}</span>}
       </div>
       {props.data ? <Spark data={props.data} minSpan={props.minSpan ?? 1} /> : <div className="spark" />}
     </div>
@@ -117,6 +118,7 @@ export default function App() {
 
   const zone = report.zones.find((z) => z.id === selected) ?? report.zones[0];
   const localizedZone = t.zones[zone.id];
+  const zoneSources = zone.sources.map((id) => SOURCES[id]).filter(Boolean);
 
   const radiation = report.zones.find((z) => z.id === "radiation")?.level ?? "nominal";
   const heart = report.zones.find((z) => z.id === "heart")?.level ?? "nominal";
@@ -211,7 +213,9 @@ export default function App() {
                     <span className="idx">{String(i + 1).padStart(2, "0")}</span>
                     <div className="hz-body">
                       <div className="hz-name">{locHazard?.name ?? h.name}</div>
-                      <div className="hz-detail">{locHazard?.detail ?? h.detail}</div>
+                      <div className="hz-detail">
+                        {locHazard?.detail ?? h.detail} · {t.basis[h.basis]}
+                      </div>
                     </div>
                     <div className="hz-value">
                       <span className="dot" />
@@ -293,8 +297,8 @@ export default function App() {
             />
             <Cell
               label={t.vitals.sleep}
-              value={v.sleepHours.toFixed(1)}
-              unit="h"
+              value={v.sleepHours === null ? "—" : v.sleepHours.toFixed(1)}
+              unit={v.sleepHours === null ? "" : "h"}
               level={brain}
             />
             <Cell
@@ -330,6 +334,25 @@ export default function App() {
                 <dd>{localizedZone.action}</dd>
               </dl>
             )}
+            <div className="src">
+              <div className="src-head">
+                <span className="eyebrow">{t.sources}</span>
+                <span className="basis" data-basis={zone.basis}>
+                  {t.basis[zone.basis]}
+                </span>
+              </div>
+              <ul className="src-list">
+                {zoneSources.map((s) => (
+                  <li key={s.label}>
+                    <span>{s.label}</span>
+                    <span className="src-url">{s.url}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="src-date">
+                {t.checked}: {CHECKED}
+              </div>
+            </div>
           </section>
 
           <section className="panel tasks">
@@ -350,7 +373,17 @@ export default function App() {
                     <button
                       className="task"
                       data-done={task.done}
-                      onClick={() => run("toggle_task", { id: task.id })}
+                      onClick={() => {
+                        if (task.id === "sleep_log" || task.id === "bp_check") {
+                          setTabletPath({
+                            section: "checkIn",
+                            module: task.id === "sleep_log" ? "sleepMood" : "bloodPressure",
+                          });
+                          setTabletOpen(true);
+                        } else {
+                          run("toggle_task", { id: task.id });
+                        }
+                      }}
                     >
                       <span className="check" />
                       <span className="task-body">
