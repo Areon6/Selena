@@ -74,10 +74,10 @@ button {
 .app {
   position: relative;
   height: 100%;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 14px;
-  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 16px;
   background:
     radial-gradient(900px 520px at 12% -8%, rgba(67, 192, 174, 0.13), transparent 60%),
     radial-gradient(800px 600px at 100% 110%, rgba(198, 139, 92, 0.12), transparent 60%),
@@ -156,10 +156,11 @@ button {
 /* ───────── header ───────── */
 
 .top {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 12px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -221,23 +222,24 @@ button {
 /* ───────── layout ───────── */
 
 .main {
+  flex: 1;
   display: grid;
   grid-template-columns: 308px minmax(0, 1fr) 352px;
-  gap: 14px;
+  gap: 12px;
   min-height: 0;
 }
 
 .col {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   min-height: 0;
   overflow-y: auto;
 }
 
 .panel {
   position: relative;
-  padding: 16px;
+  padding: 13px 14px;
   border: 1px solid var(--line);
   background: var(--panel);
 }
@@ -267,7 +269,7 @@ button {
 
 .hazards {
   list-style: none;
-  margin: 14px 0 0;
+  margin: 10px 0 0;
   padding: 0;
 }
 .hazards li {
@@ -275,7 +277,7 @@ button {
   grid-template-columns: 22px 1fr auto;
   gap: 10px;
   align-items: start;
-  padding: 11px 0;
+  padding: 8px 0;
   border-top: 1px solid var(--line);
 }
 .idx {
@@ -304,7 +306,7 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 14px 0 10px;
+  margin: 10px 0 8px;
   font: 500 10px/1 var(--mono);
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -340,14 +342,14 @@ button {
 
 .demo {
   display: grid;
-  gap: 8px;
+  gap: 7px;
 }
 .demo .eyebrow {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .btn {
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: transparent;
   border: 1px solid var(--line2);
   font: 500 11px/1 var(--mono);
@@ -505,27 +507,29 @@ button {
   padding: 0;
 }
 .cell {
-  padding: 14px 14px 10px;
+  padding: 10px 10px 8px;
   border-left: 1px solid var(--line);
+  min-width: 0;
 }
 .cell:first-child {
   border-left: 0;
 }
 .cell-value {
-  margin: 10px 0 6px;
-  font: 300 25px/1 var(--sans);
+  margin: 7px 0 4px;
+  font: 300 clamp(18px, 1.45vw, 23px)/1 var(--sans);
   letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 .unit {
-  margin-left: 4px;
+  margin-left: 3px;
   font: 500 10px var(--mono);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--faint);
 }
 .spark {
   display: block;
   width: 100%;
-  height: 34px;
+  height: 28px;
 }
 .spark-line {
   fill: none;
@@ -550,8 +554,8 @@ button {
   gap: 10px;
 }
 .detail h3 {
-  margin: 8px 0 0;
-  font-size: 19px;
+  margin: 6px 0 0;
+  font-size: 18px;
   font-weight: 500;
   letter-spacing: -0.01em;
 }
@@ -567,8 +571,8 @@ button {
   text-transform: uppercase;
 }
 .metric {
-  margin: 16px 0 6px;
-  font: 500 15px/1.2 var(--mono);
+  margin: 12px 0 5px;
+  font: 500 14px/1.2 var(--mono);
   color: var(--c);
 }
 .note {
@@ -576,17 +580,17 @@ button {
   color: var(--dim);
 }
 dl {
-  margin: 14px 0 0;
+  margin: 10px 0 0;
 }
 dt {
-  margin-top: 12px;
+  margin-top: 10px;
   font: 500 10px/1 var(--mono);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--clay);
 }
 dd {
-  margin: 6px 0 0;
+  margin: 5px 0 0;
 }
 
 .tasks {
@@ -603,7 +607,7 @@ dd {
 }
 .progress {
   height: 2px;
-  margin: 12px 0 6px;
+  margin: 10px 0 4px;
   background: var(--line);
 }
 .progress i {
@@ -623,7 +627,7 @@ dd {
   grid-template-columns: 18px 1fr auto;
   gap: 12px;
   align-items: start;
-  padding: 11px 0;
+  padding: 8px 0;
   text-align: left;
   background: none;
   border: 0;
@@ -680,13 +684,21 @@ dd {
   color: var(--faint);
 }
 
-/* ───────── alert ───────── */
+/* ───────── alerts ───────── */
+
+.alerts {
+  flex: none;
+  display: grid;
+  gap: 8px;
+  max-height: 210px;
+  overflow-y: auto;
+}
 
 .alert {
   display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 24px;
-  padding: 16px 18px;
+  grid-template-columns: 260px 1fr;
+  gap: 18px;
+  padding: 10px 14px;
   border: 1px solid var(--red);
   background: linear-gradient(90deg, rgba(240, 96, 63, 0.22), rgba(240, 96, 63, 0.07));
   animation: drop 0.35s ease-out;
@@ -701,12 +713,13 @@ dd {
   color: var(--red);
 }
 .alert h2 {
-  margin: 8px 0 4px;
-  font-size: 20px;
+  margin: 4px 0 2px;
+  font-size: 16px;
   font-weight: 500;
 }
 .alert p {
   margin: 0;
+  font-size: 12px;
   color: #f1c9bd;
 }
 .alert-steps {
@@ -715,16 +728,17 @@ dd {
   padding: 0;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 14px;
-  font-size: 12px;
+  gap: 10px;
+  font-size: 11px;
+  line-height: 1.35;
 }
 .alert-steps li {
-  padding-top: 10px;
+  padding-top: 6px;
   border-top: 1px solid rgba(240, 96, 63, 0.5);
 }
 .step-n {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   font: 500 10px/1 var(--mono);
   letter-spacing: 0.14em;
   color: var(--red);
@@ -745,9 +759,32 @@ dd {
 /* ───────── sources & responsive ───────── */
 
 .src {
-  margin-top: 16px;
-  padding-top: 12px;
+  margin-top: 12px;
+  padding-top: 10px;
   border-top: 1px solid var(--line);
+}
+.src-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.basis {
+  padding: 3px 7px;
+  border: 1px solid var(--line2);
+  font: 500 9px/1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+  white-space: nowrap;
+}
+.basis[data-basis="nasa"] {
+  border-color: rgba(67, 192, 174, 0.5);
+  color: var(--teal);
+}
+.basis[data-basis="mixed"] {
+  border-color: rgba(232, 175, 78, 0.5);
+  color: var(--amber);
 }
 .src ul {
   list-style: none;
@@ -765,13 +802,19 @@ dd {
   color: var(--faint);
   word-break: break-all;
 }
+.src-list li > span:first-child {
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--dim);
+  word-break: normal;
+}
 .src-date {
   margin-top: 8px;
   font: 500 10px var(--mono);
   color: var(--faint);
 }
 
-@media (max-width: 1560px) {
+@media (max-width: 1340px) {
   .vitals {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }

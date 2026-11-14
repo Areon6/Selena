@@ -17,8 +17,9 @@ interface History {
   sys: number[];
   spo2: number[];
   dose: number[];
+  co2: number[];
 }
-const EMPTY: History = { hr: [], sys: [], spo2: [], dose: [] };
+const EMPTY: History = { hr: [], sys: [], spo2: [], dose: [], co2: [] };
 const push = (a: number[], v: number) => [...a.slice(-(HISTORY - 1)), v];
 
 function Spark({ data, minSpan }: { data: number[]; minSpan: number }) {
@@ -86,6 +87,7 @@ export default function App() {
         sys: push(h.sys, r.vitals.systolicMmhg),
         spo2: push(h.spo2, r.vitals.spo2Pct),
         dose: push(h.dose, r.environment.doseRateUsvH),
+        co2: push(h.co2, r.environment.co2Mmhg),
       }));
     } catch (e) {
       setError(String(e));
@@ -124,6 +126,7 @@ export default function App() {
   const heart = report.zones.find((z) => z.id === "heart")?.level ?? "nominal";
   const lungs = report.zones.find((z) => z.id === "lungs")?.level ?? "nominal";
   const brain = report.zones.find((z) => z.id === "brain")?.level ?? "nominal";
+  const environment = report.hazards.find((h) => h.id === "environment")?.level ?? "nominal";
   const v = report.vitals;
   const doneCount = report.tasks.filter((task) => task.done).length;
 
@@ -182,22 +185,26 @@ export default function App() {
         </div>
       </header>
 
-      {report.alert && (
-        <section className="alert">
-          <div className="alert-head">
-            <div className="eyebrow">{t.emergencyProtocol}</div>
-            <h2>{t.alertTitle}</h2>
-            <p>{t.alertSummary}</p>
-          </div>
-          <ol className="alert-steps">
-            {t.alertSteps.map((stepText, i) => (
-              <li key={i}>
-                <span className="step-n">{String(i + 1).padStart(2, "0")}</span>
-                {stepText}
-              </li>
-            ))}
-          </ol>
-        </section>
+      {report.alerts.length > 0 && (
+        <div className="alerts">
+          {report.alerts.map((a) => (
+            <section className="alert" key={a.id}>
+              <div className="alert-head">
+                <div className="eyebrow">{t.emergencyProtocol}</div>
+                <h2>{a.title}</h2>
+                <p>{a.summary}</p>
+              </div>
+              <ol className="alert-steps">
+                {a.steps.map((stepText, i) => (
+                  <li key={i}>
+                    <span className="step-n">{String(i + 1).padStart(2, "0")}</span>
+                    {stepText}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ))}
+        </div>
       )}
 
       <main className="main">
@@ -214,7 +221,7 @@ export default function App() {
                     <div className="hz-body">
                       <div className="hz-name">{locHazard?.name ?? h.name}</div>
                       <div className="hz-detail">
-                        {locHazard?.detail ?? h.detail} · {t.basis[h.basis]}
+                        {h.detail} · {t.basis[h.basis]}
                       </div>
                     </div>
                     <div className="hz-value">
@@ -241,8 +248,26 @@ export default function App() {
 
           <section className="panel demo">
             <div className="eyebrow">{t.demoControls}</div>
-            <button className="btn danger" onClick={() => run("trigger_solar_event")} disabled={!!report.alert}>
+            <button
+              className="btn danger"
+              onClick={() => run("trigger_solar_event")}
+              disabled={report.scenarios.solarActive}
+            >
               {t.simulateSolar}
+            </button>
+            <button
+              className="btn danger"
+              onClick={() => run("trigger_co2_failure")}
+              disabled={report.scenarios.co2FailureActive}
+            >
+              {t.simulateCo2}
+            </button>
+            <button
+              className="btn"
+              onClick={() => run("restore_co2_scrubber")}
+              disabled={!report.scenarios.co2FailureActive}
+            >
+              {t.restoreCo2}
             </button>
             <button className="btn" onClick={() => run("reset_scenario")}>
               {t.resetScenario}
@@ -290,10 +315,12 @@ export default function App() {
               minSpan={2}
             />
             <Cell
-              label={t.vitals.bodyTemp}
-              value={v.bodyTempC.toFixed(1)}
-              unit="°C"
-              level="nominal"
+              label={t.vitals.co2}
+              value={report.environment.co2Mmhg.toFixed(1)}
+              unit="mmHg"
+              level={environment}
+              data={hist.co2}
+              minSpan={0.6}
             />
             <Cell
               label={t.vitals.sleep}
@@ -325,7 +352,7 @@ export default function App() {
               </span>
             </div>
             <div className="metric">{zone.metric}</div>
-            <p className="note">{localizedZone?.note ?? zone.note}</p>
+            <p className="note">{zone.note}</p>
             {localizedZone && (
               <dl>
                 <dt>{t.whyItMatters}</dt>

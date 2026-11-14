@@ -48,9 +48,16 @@ export interface Task {
 }
 
 export interface Alert {
+  id: "solar" | "co2";
   title: string;
   summary: string;
   steps: string[];
+}
+
+export interface Scenarios {
+  solarActive: boolean;
+  co2FailureActive: boolean;
+  co2Restoring: boolean;
 }
 
 export interface SleepLog {
@@ -71,7 +78,8 @@ export interface HealthReport {
   commsDelayMin: number;
   autonomous: boolean;
   level: Level;
-  alert: Alert | null;
+  alerts: Alert[];
+  scenarios: Scenarios;
   vitals: Vitals;
   environment: Environment;
   zones: BodyZone[];
