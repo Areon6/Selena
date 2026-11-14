@@ -4,6 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { BodyProfile, BodyZone, Level } from "../types";
 import { I18N } from "../i18n";
 import { buildBodyGeometries } from "./bodyGeometries";
+import { createEarthBackground, type EarthQuality } from "./earthBackground";
 import {
   DEFAULT_PROFILE,
   REF_HEIGHT_M,
@@ -23,6 +24,11 @@ export interface BodyModelProps {
   profile?: BodyProfile;
   /** Live slider draft: only applies a cheap `pointCloud.scale` until `profile` catches up. */
   previewProfile?: BodyProfile;
+  /**
+   * Quality of the orbital Earth backdrop. "high" is the default; if the frame rate stays low the
+   * backdrop downgrades itself to "low" once. Changing this prop re-arms that logic.
+   */
+  earthQuality?: EarthQuality;
 }
 
 /* ------------------------------------------------------------------ */
@@ -453,6 +459,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
   lang,
   profile = DEFAULT_PROFILE,
   previewProfile,
+  earthQuality = "high",
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const [hoveredZone, setHoveredZone] = useState<string | null>(null);
@@ -466,9 +473,13 @@ export const BodyModel: React.FC<BodyModelProps> = ({
   // Profile the scene is initially built from (read once, inside the mount effect)
   const initialProfileRef = useRef<BodyProfile>(profile);
 
+  // Earth backdrop quality: read once at mount, then driven through applyEarthQualityRef
+  const earthQualityRef = useRef<EarthQuality>(earthQuality);
+
   const resetCameraRef = useRef<() => void>(() => {});
   const applyGeometryRef = useRef<(p: BodyProfile) => void>(() => {});
   const applyPreviewRef = useRef<(p: BodyProfile | undefined) => void>(() => {});
+  const applyEarthQualityRef = useRef<(q: EarthQuality) => void>(() => {});
 
   useEffect(() => {
     const container = mountRef.current;
@@ -486,7 +497,9 @@ export const BodyModel: React.FC<BodyModelProps> = ({
     // 1. SCENE AND CAMERA
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x070c11);
+    // No background colour: the Earth backdrop (earthBackground.ts) is rendered first and
+    // this scene is drawn on top of it.
+    scene.background = null;
 
     const camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 50);
     const TARGET = new THREE.Vector3(0, 1.05 * k0, 0);
@@ -502,6 +515,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
     });
     renderer.setPixelRatio(pixelRatio);
     renderer.setSize(width, height, false);
+    renderer.autoClear = false; // two passes per frame: backdrop, then the body
 
     const dom = renderer.domElement;
     dom.style.display = "block";
@@ -511,6 +525,29 @@ export const BodyModel: React.FC<BodyModelProps> = ({
     dom.style.height = "100%";
     dom.style.cursor = "grab";
     container.appendChild(dom);
+
+    // 2b. EARTH BACKDROP (isolated module; textures are generated once, spread over a few frames)
+
+    const earth = createEarthBackground({
+      quality: earthQualityRef.current,
+      pixelRatio,
+    });
+    earth.setSize(width, height, pixelRatio);
+
+    // Auto-downgrade bookkeeping (only while the backdrop runs in "high")
+    let autoDowngraded = false;
+    let lastFrameT = 0;
+    let accDt = 0;
+    let accN = 0;
+    let badWindows = 0;
+
+    applyEarthQualityRef.current = (q: EarthQuality) => {
+      autoDowngraded = q === "low"; // an explicit "low" never needs the watchdog
+      accDt = 0;
+      accN = 0;
+      badWindows = 0;
+      earth.setQuality(q);
+    };
 
     // 3. CONTROLS
 
@@ -744,6 +781,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
+      earth.setSize(width, height, pixelRatio);
     });
     resizeObserver.observe(container);
 
@@ -800,6 +838,30 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       const bones = curZones.find((z) => z.id === "bones");
       setLevelColor(uColors[5], DUST, bones?.level ?? "nominal", 0.5);
 
+      // Backdrop frame-rate watchdog: if the Earth stays heavy for ~3 s of measured frames,
+      // fall back to its "low" path once. Skipped while textures are still being generated.
+      const dt = time - lastFrameT;
+      lastFrameT = time;
+      if (!autoDowngraded && earth.ready && earth.getQuality() === "high" && time > 4) {
+        accDt += Math.min(dt, 0.25);
+        accN++;
+        if (accN >= 90) {
+          badWindows = accDt / accN > 0.036 ? badWindows + 1 : 0; // below ~28 fps
+          accDt = 0;
+          accN = 0;
+          if (badWindows >= 2) {
+            autoDowngraded = true;
+            earth.setQuality("low");
+            console.warn("SELENA: low frame rate, Earth backdrop switched to low quality");
+          }
+        }
+      }
+
+      // Pass 1: black space, stars, Earth + atmosphere. Pass 2: the LiDAR body on top.
+      renderer.clear();
+      earth.update(time, controls.getAzimuthalAngle());
+      earth.render(renderer);
+      renderer.clearDepth();
       renderer.render(scene, camera);
     };
 
@@ -814,6 +876,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
 
       applyGeometryRef.current = () => {};
       applyPreviewRef.current = () => {};
+      applyEarthQualityRef.current = () => {};
 
       dom.removeEventListener("pointerdown", onPointerDown);
       dom.removeEventListener("pointerup", onPointerUp);
@@ -824,6 +887,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       controls.dispose();
       pointCloud.geometry.dispose(); // the CURRENT geometry (it may have been swapped)
       constellationMat.dispose();
+      earth.dispose();
 
       renderer.dispose();
       renderer.forceContextLoss();
@@ -833,6 +897,12 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       }
     };
   }, []);
+
+  // Apply a changed earthQuality prop (declared after the mount effect, so the ref is wired by then).
+  useEffect(() => {
+    earthQualityRef.current = earthQuality;
+    applyEarthQualityRef.current(earthQuality);
+  }, [earthQuality]);
 
   // Rebuild the point cloud when the committed profile changes (no-op if the key is unchanged).
   const geoKey = profileKey(profile);
@@ -874,7 +944,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
         height: "100%",
         minHeight: 460,
         overflow: "hidden",
-        background: "#070c11",
+        background: "#010206",
         userSelect: "none",
       }}
     >
