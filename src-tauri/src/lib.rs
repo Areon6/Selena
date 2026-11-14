@@ -5,7 +5,7 @@
 //! or `mixed` in each BodyZone / HazardStatus.
 //!
 //! Sleep, mood and blood pressure are NOT simulated: they come from the crew Check-in
-//! (log_sleep / log_bp). Entries live in memory for the session and reset with the scenario.
+//! (log_sleep / log_bp), which also sync into the persistent Day 78 mission log.
 //!
 //! Two demo incidents can run independently: a solar particle event and a CO2 scrubber failure.
 
@@ -13,8 +13,9 @@ use serde::Serialize;
 use std::f64::consts::TAU;
 use std::sync::{Mutex, PoisonError};
 use std::time::Instant;
-use tauri::State;
+use tauri::{AppHandle, State};
 
+mod mission_log;
 mod profile;
 
 const MISSION_DAY: u32 = 78;
@@ -587,8 +588,6 @@ fn build_report(inner: &Inner) -> HealthReport {
 }
 
 // ───────────────────────── IPC commands ─────────────────────────
-// A poisoned mutex means another thread panicked while holding it. For a
-// monitor we prefer to keep serving data, so we recover the inner value.
 
 #[tauri::command]
 fn get_health_report(state: State<'_, AppState>) -> HealthReport {
@@ -612,16 +611,25 @@ fn toggle_task(id: String, state: State<'_, AppState>) -> Result<HealthReport, S
 }
 
 #[tauri::command]
-fn log_sleep(hours: f64, mood: u8, state: State<'_, AppState>) -> Result<HealthReport, String> {
+fn log_sleep(
+    hours: f64,
+    mood: u8,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<HealthReport, String> {
     if !hours.is_finite() || !(0.0..=16.0).contains(&hours) {
         return Err("sleep hours must be between 0 and 16".into());
     }
     if !(1..=5).contains(&mood) {
         return Err("mood must be 1 to 5".into());
     }
-    let mut inner = state.0.lock().unwrap_or_else(PoisonError::into_inner);
-    inner.sleep = Some(SleepEntry { hours, mood, at: Instant::now() });
-    Ok(build_report(&inner))
+    let report = {
+        let mut inner = state.0.lock().unwrap_or_else(PoisonError::into_inner);
+        inner.sleep = Some(SleepEntry { hours, mood, at: Instant::now() });
+        build_report(&inner)
+    };
+    mission_log::sync_day78_sleep(&app, hours, mood);
+    Ok(report)
 }
 
 #[tauri::command]
@@ -629,6 +637,7 @@ fn log_bp(
     systolic: f64,
     diastolic: f64,
     pulse: f64,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<HealthReport, String> {
     let ok = |v: f64, lo: f64, hi: f64| v.is_finite() && v >= lo && v <= hi;
@@ -638,9 +647,13 @@ fn log_bp(
     if systolic <= diastolic {
         return Err("systolic must be higher than diastolic".into());
     }
-    let mut inner = state.0.lock().unwrap_or_else(PoisonError::into_inner);
-    inner.bp = Some(BpEntry { systolic, diastolic, pulse, at: Instant::now() });
-    Ok(build_report(&inner))
+    let report = {
+        let mut inner = state.0.lock().unwrap_or_else(PoisonError::into_inner);
+        inner.bp = Some(BpEntry { systolic, diastolic, pulse, at: Instant::now() });
+        build_report(&inner)
+    };
+    mission_log::sync_day78_bp(&app, systolic, diastolic, pulse);
+    Ok(report)
 }
 
 #[tauri::command]
@@ -701,7 +714,10 @@ pub fn run() {
             reset_scenario,
             profile::get_body_profile,
             profile::set_body_profile,
-            profile::reset_body_profile
+            profile::reset_body_profile,
+            mission_log::get_mission_log,
+            mission_log::save_day_entry,
+            mission_log::reset_mission_log
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

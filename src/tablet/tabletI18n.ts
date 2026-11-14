@@ -1,4 +1,4 @@
-import type { BmiCategory, Sex } from "../types";
+import type { BmiCategory, DaySource, Level, Sex } from "../types";
 import type { Lang } from "../i18n";
 
 /** Tablet texts live next to the tablet so a new section only touches this folder. Same EN / RU switch as i18n.ts. */
@@ -55,6 +55,50 @@ export interface TabletTexts {
     ago: (min: number) => string;
     hint: string;
   };
+  mindData: {
+    tabs: { calendar: string; analytics: string; importReport: string };
+    ranges: [string, string, string];
+    dayShort: (d: number) => string;
+    dayTitle: (d: number) => string;
+    levels: Record<Level, string>;
+    emptyLevel: string;
+    sources: Record<DaySource, string>;
+    calDisclaimer: string;
+    resetSample: string;
+    resetting: string;
+    physioTitle: string;
+    psychTitle: string;
+    tagsTitle: string;
+    noteTitle: string;
+    notePlaceholder: string;
+    physioOptional: string;
+    noData: (d: number) => string;
+    noSignalTitle: string;
+    noSignalSub: (d: number) => string;
+    noSignalStatus: string;
+    btnBack: string;
+    btnEdit: string;
+    btnFill: string;
+    btnSave: string;
+    btnSaving: string;
+    formSubtitle: string;
+    mood: string;
+    energy: string;
+    stress: string;
+    sleep: string;
+    hr: string;
+    bp: string;
+    bpSys: string;
+    bpDia: string;
+    spo2: string;
+    ppco2: string;
+    doseRate: string;
+    tags: Record<string, string>;
+    stubAnalytics: string;
+    stubImport: string;
+    nextStep: string;
+    loading: string;
+  };
 }
 
 export const TABLET_I18N: Record<Lang, TabletTexts> = {
@@ -78,6 +122,15 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
         modules: {
           sleepMood: { title: "Sleep and mood", desc: "Hours slept and a 1–5 mood score" },
           bloodPressure: { title: "Blood pressure", desc: "Seated, at rest: pressure and pulse" },
+        },
+      },
+      mindData: {
+        title: "Mind & Data",
+        desc: "Mission calendar from Day 1, crew log and data tools",
+        modules: {
+          calendar: { title: "Mission calendar", desc: "Browse Days 1–78, inspect daily status or log retroactive entries" },
+          analytics: { title: "Mind & correlations", desc: "Mood swings, thought themes and mind-body links (next step)" },
+          importReport: { title: "Import & report", desc: "CSV/JSON device ingestion and mission brief (next step)" },
         },
       },
     },
@@ -142,7 +195,67 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
       none: "No entry yet",
       justNow: "just now",
       ago: (m) => `${m} min ago`,
-      hint: "Kept on board for this session only. Resets with the scenario. Thresholds are illustrative.",
+      hint: "Live scenario session syncs into Day 78 of the mission log. Thresholds are illustrative.",
+    },
+    mindData: {
+      tabs: { calendar: "Calendar", analytics: "Analytics", importReport: "Import" },
+      ranges: ["Days 1–28", "Days 29–56", "Days 57–78"],
+      dayShort: (d) => `D${String(d).padStart(2, "0")}`,
+      dayTitle: (d) => `DAY ${String(d).padStart(2, "0")}`,
+      levels: { nominal: "Nominal", watch: "Watch", critical: "Critical" },
+      emptyLevel: "No data",
+      sources: {
+        sample: "Simulated sample history",
+        checkin: "Crew Check-in",
+        manual: "Manual log entry",
+        import: "Device import",
+      },
+      calDisclaimer: "Days 1–77 are simulated sample history · Day rank A–D is an illustrative composite score",
+      resetSample: "Reset log to sample",
+      resetting: "Resetting…",
+      physioTitle: "Physiological summary",
+      psychTitle: "Psychological snapshot",
+      tagsTitle: "Quick tags",
+      noteTitle: "Crew notes",
+      notePlaceholder: "Free-text thoughts, sleep notes or cabin observations…",
+      physioOptional: "Physiological values (optional)",
+      noData: (d) => `No telemetry or crew check-in logged for Day ${d}.`,
+      noSignalTitle: "NO SIGNAL",
+      noSignalSub: (d) => `NO DATA LOGGED FOR DAY ${String(d).padStart(2, "0")}`,
+      noSignalStatus: "MISSION ARCHIVE",
+      btnBack: "← Back",
+      btnEdit: "Edit / add data",
+      btnFill: "Log data for this date",
+      btnSave: "Save entry",
+      btnSaving: "Saving…",
+      formSubtitle: "Retroactive or current mission day log",
+      mood: "Mood",
+      energy: "Energy",
+      stress: "Stress",
+      sleep: "Sleep",
+      hr: "Heart rate",
+      bp: "Blood pressure",
+      bpSys: "BP Systolic",
+      bpDia: "BP Diastolic",
+      spo2: "SpO₂",
+      ppco2: "ppCO₂",
+      doseRate: "Dose rate",
+      tags: {
+        fatigue: "Fatigue",
+        weakness: "Weakness",
+        brain_fog: "Brain fog",
+        poor_sleep: "Poor sleep",
+        homesick: "Homesick / Family",
+        cabin_stuffy: "Cabin stuffy",
+        crew_tension: "Crew tension",
+        calm: "Calm",
+        focused: "Focused",
+        motivated: "Motivated",
+      },
+      stubAnalytics: "Mood swings, thought themes and mind–body correlations will run here in Stage 3.",
+      stubImport: "CSV/JSON device data import and Houston micro-report export will run here in Stage 4.",
+      nextStep: "Coming in next stage",
+      loading: "Loading mission archive…",
     },
   },
   ru: {
@@ -165,6 +278,15 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
         modules: {
           sleepMood: { title: "Сон и самочувствие", desc: "Часы сна и оценка 1–5" },
           bloodPressure: { title: "Давление", desc: "Сидя, в покое: давление и пульс" },
+        },
+      },
+      mindData: {
+        title: "Mind & Data",
+        desc: "Календарь с Day 1, психология и данные приборов",
+        modules: {
+          calendar: { title: "Календарь миссии", desc: "Дни 1–78: статистика дат, экран NO SIGNAL и ввод задним числом" },
+          analytics: { title: "Психика и корреляции", desc: "Перепады, темы мыслей и связь с физиологией (Этап 3)" },
+          importReport: { title: "Импорт и микроотчёт", desc: "Загрузка CSV/JSON с приборов и сводка для Хьюстона (Этап 4)" },
         },
       },
     },
@@ -229,7 +351,67 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
       none: "Записей пока нет",
       justNow: "только что",
       ago: (m) => `${m} мин назад`,
-      hint: "Хранится на борту до конца сессии. Сбрасывается вместе со сценарием. Пороги условные.",
+      hint: "Свежие записи также попадают в Day 78 журнала миссии. Пороги условные.",
+    },
+    mindData: {
+      tabs: { calendar: "Календарь", analytics: "Аналитика", importReport: "Импорт" },
+      ranges: ["Дни 1–28", "Дни 29–56", "Дни 57–78"],
+      dayShort: (d) => `D${String(d).padStart(2, "0")}`,
+      dayTitle: (d) => `ДЕНЬ ${String(d).padStart(2, "0")}`,
+      levels: { nominal: "Норма", watch: "Внимание", critical: "Критично" },
+      emptyLevel: "Нет данных",
+      sources: {
+        sample: "Демо-история (sample)",
+        checkin: "Check-in экипажа",
+        manual: "Ручная запись",
+        import: "Импорт с прибора",
+      },
+      calDisclaimer: "Дни 1–77 — демо-история · Ранг дня A–D является условной составной оценкой",
+      resetSample: "Сбросить лог к демо",
+      resetting: "Сброс…",
+      physioTitle: "Физиологическая сводка",
+      psychTitle: "Психологический срез",
+      tagsTitle: "Быстрые теги",
+      noteTitle: "Заметки и мысли",
+      notePlaceholder: "Свободные мысли, наблюдения за сном или атмосферой в каюте…",
+      physioOptional: "Физио-параметры (необязательно)",
+      noData: (d) => `За День ${d} не зафиксировано телеметрии и записей экипажа.`,
+      noSignalTitle: "NO SIGNAL",
+      noSignalSub: (d) => `НЕТ ДАННЫХ ЗА ДЕНЬ ${String(d).padStart(2, "0")}`,
+      noSignalStatus: "АРХИВ МИССИИ",
+      btnBack: "← Назад",
+      btnEdit: "Изменить / дополнить дату",
+      btnFill: "Заполнить данные на эту дату",
+      btnSave: "Сохранить запись",
+      btnSaving: "Сохранение…",
+      formSubtitle: "Ввод задним числом или запись на дату",
+      mood: "Настроение",
+      energy: "Энергия",
+      stress: "Стресс",
+      sleep: "Сон",
+      hr: "Пульс",
+      bp: "Давление",
+      bpSys: "Систолическое",
+      bpDia: "Диастолическое",
+      spo2: "SpO₂",
+      ppco2: "ppCO₂",
+      doseRate: "Доза",
+      tags: {
+        fatigue: "Усталость",
+        weakness: "Слабость",
+        brain_fog: "Туман в голове",
+        poor_sleep: "Плохой сон",
+        homesick: "Скучаю по дому",
+        cabin_stuffy: "Душно в каюте",
+        crew_tension: "Напряжение в экипаже",
+        calm: "Спокойствие",
+        focused: "Фокус",
+        motivated: "Мотивация",
+      },
+      stubAnalytics: "Детектор перепадов настроения, разбор тем мыслей и корреляции с телом будут добавлены на Этапе 3.",
+      stubImport: "Импорт CSV/JSON с приборов и экспорт микроотчёта для Хьюстона будут добавлены на Этапе 4.",
+      nextStep: "Следующий этап",
+      loading: "Загрузка журнала миссии…",
     },
   },
 };

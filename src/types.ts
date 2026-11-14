@@ -114,3 +114,44 @@ export interface BodyMetrics {
   ffmi: number;
   bmrKcal: number;
 }
+
+// ─── Mission Log (Mind & Data) ────────────────────────────────────────────────
+
+export type DaySource = "sample" | "checkin" | "manual" | "import";
+export type DayRank = "A" | "B" | "C" | "D";
+
+export interface DayEntry {
+  day: number;
+  source?: DaySource;
+
+  hr?: number;
+  bpSys?: number;
+  bpDia?: number;
+  spo2?: number;
+  ppco2?: number;
+  sleepHours?: number;
+  doseUsvH?: number;
+
+  mood?: number;
+  energy?: number;
+  stress?: number;
+  tags?: string[];
+  note?: string;
+  themes?: string[];
+
+  level?: Level;
+  rank?: DayRank;
+}
+
+export interface MissionLog {
+  currentDay: number;
+  entries: DayEntry[];
+}
+
+export type LogMap = Map<number, DayEntry>;
+
+export function buildLogMap(log: MissionLog): LogMap {
+  const m = new Map<number, DayEntry>();
+  for (const e of log.entries) m.set(e.day, e);
+  return m;
+}
