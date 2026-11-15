@@ -247,3 +247,14 @@ export interface MindAnalytics {
   sentiments: SentimentCounts;
   correlations: CorrelationPair[];
 }
+
+// ─── Stage 4: Device Importer ────────────────────────────────────────────────
+
+export interface ImportResult {
+  format: "csv" | "json";
+  importedDays: number;
+  updatedDays: number;
+  skippedRows: number;
+  warnings: string[];
+  log: MissionLog;
+}

@@ -10,7 +10,7 @@ use std::{fs, path::PathBuf};
 use tauri::{AppHandle, Manager};
 
 const FILE_NAME: &str = "mission_log.json";
-const CURRENT_MISSION_DAY: u32 = 78;
+pub(crate) const CURRENT_MISSION_DAY: u32 = 78;
 
 /// Number of scored metrics: hr, bp_sys, bp_dia, spo2, ppco2, sleep_hours, dose_usv_h, mood, energy, stress.
 const SCORED_METRICS: u8 = 10;
@@ -115,7 +115,7 @@ fn clean_scale(v: Option<u8>) -> Option<u8> {
     v.map(|x| x.clamp(1, 5))
 }
 
-fn sanitize_entry(mut e: DayEntry) -> Result<DayEntry, String> {
+pub(crate) fn sanitize_entry(mut e: DayEntry) -> Result<DayEntry, String> {
     if e.day == 0 || e.day > CURRENT_MISSION_DAY {
         return Err(format!("day must be between 1 and {CURRENT_MISSION_DAY}"));
     }
@@ -478,7 +478,7 @@ fn make_fresh_log() -> MissionLog {
     }
 }
 
-fn save_log(app: &AppHandle, log: &MissionLog) -> Result<(), String> {
+pub(crate) fn save_log(app: &AppHandle, log: &MissionLog) -> Result<(), String> {
     let path = file_path(app)?;
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir).map_err(|e| format!("cannot create data dir: {e}"))?;
