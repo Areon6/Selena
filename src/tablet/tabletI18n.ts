@@ -1,4 +1,4 @@
-import type { BmiCategory, DaySource, Level, Sex } from "../types";
+import type { BmiCategory, DaySource, Level, Sentiment, Sex } from "../types";
 import type { Lang } from "../i18n";
 
 /** Tablet texts live next to the tablet so a new section only touches this folder. Same EN / RU switch as i18n.ts. */
@@ -69,6 +69,8 @@ export interface TabletTexts {
     physioTitle: string;
     psychTitle: string;
     tagsTitle: string;
+    themesTitle: string;
+    sentimentTitle: string;
     noteTitle: string;
     notePlaceholder: string;
     physioOptional: string;
@@ -94,7 +96,37 @@ export interface TabletTexts {
     ppco2: string;
     doseRate: string;
     tags: Record<string, string>;
-    stubAnalytics: string;
+    sentiments: Record<Sentiment, string>;
+    themes: Record<string, string>;
+    analytics: {
+      loading: string;
+      coverageTitle: string;
+      loggedValue: (logged: number, total: number) => string;
+      sampleTag: (n: number) => string;
+      manualTag: (n: number) => string;
+      checkinTag: (n: number) => string;
+      importTag: (n: number) => string;
+      avgMood: string;
+      avgStress: string;
+      avgSleep: string;
+      volatility: string;
+      sparkTitle: string;
+      legend: { mood: string; stress: string; shift: string };
+      noSeries: string;
+      shiftsTitle: string;
+      noShifts: string;
+      shiftRow: (fromDay: number, toDay: number) => string;
+      themesTitle: string;
+      noThemes: string;
+      sentimentTitle: string;
+      corrTitle: string;
+      corrCohortSample: (nA: number, nB: number) => string;
+      corrInsufficient: string;
+      corrPairs: Record<string, { title: string; cohortA: string; cohortB: string; note: string }>;
+      corrMetrics: Record<string, string>;
+      basisIllustrative: string;
+      disclaimer: string;
+    };
     stubImport: string;
     nextStep: string;
     loading: string;
@@ -129,7 +161,7 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
         desc: "Mission calendar from Day 1, crew log and data tools",
         modules: {
           calendar: { title: "Mission calendar", desc: "Browse Days 1–78, inspect daily status or log retroactive entries" },
-          analytics: { title: "Mind & correlations", desc: "Mood swings, thought themes and mind-body links (next step)" },
+          analytics: { title: "Mind & correlations", desc: "Mood volatility, thought themes and mind-body associations" },
           importReport: { title: "Import & report", desc: "CSV/JSON device ingestion and mission brief (next step)" },
         },
       },
@@ -216,6 +248,8 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
       physioTitle: "Physiological summary",
       psychTitle: "Psychological snapshot",
       tagsTitle: "Quick tags",
+      themesTitle: "Detected thought themes",
+      sentimentTitle: "Tone",
       noteTitle: "Crew notes",
       notePlaceholder: "Free-text thoughts, sleep notes or cabin observations…",
       physioOptional: "Physiological values (optional)",
@@ -252,7 +286,75 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
         focused: "Focused",
         motivated: "Motivated",
       },
-      stubAnalytics: "Mood swings, thought themes and mind–body correlations will run here in Stage 3.",
+      sentiments: {
+        positive: "Positive",
+        mixed: "Mixed",
+        negative: "Negative",
+        neutral: "Neutral",
+      },
+      themes: {
+        isolation_family: "Isolation & family",
+        fatigue_sleep: "Fatigue & sleep",
+        cognitive_load: "Cognitive load",
+        cabin_environment: "Cabin environment",
+        crew_interpersonal: "Crew interpersonal",
+        positive_recovery: "Positive recovery",
+      },
+      analytics: {
+        loading: "Computing mission log analytics…",
+        coverageTitle: "Archive coverage & baseline",
+        loggedValue: (logged, total) => `${logged} / ${total} days`,
+        sampleTag: (n) => `${n} simulated sample`,
+        manualTag: (n) => `${n} manual`,
+        checkinTag: (n) => `${n} check-in`,
+        importTag: (n) => `${n} import`,
+        avgMood: "Mean mood",
+        avgStress: "Mean stress",
+        avgSleep: "Mean sleep",
+        volatility: "Volatility σ (mood / stress)",
+        sparkTitle: "Mood & stress trajectory",
+        legend: { mood: "Mood", stress: "Stress", shift: "Shift ≥ 2" },
+        noSeries: "Not enough mood/stress points to plot trajectory.",
+        shiftsTitle: "Sharp day-to-day shifts",
+        noShifts: "No consecutive jumps with |ΔMood| ≥ 2 or |ΔStress| ≥ 2.",
+        shiftRow: (fromDay, toDay) => `D${String(fromDay).padStart(2, "0")} → D${String(toDay).padStart(2, "0")}`,
+        themesTitle: "Recurring thought themes",
+        noThemes: "No tagged or note-derived themes logged yet.",
+        sentimentTitle: "Note tone balance",
+        corrTitle: "Mind ↔ Body associations",
+        corrCohortSample: (nA, nB) => `n = ${nA} vs ${nB} days`,
+        corrInsufficient: "Requires at least 3 logged days in each cohort.",
+        corrPairs: {
+          sleep_vs_mood: {
+            title: "Short sleep vs adequate sleep",
+            cohortA: "Sleep < 7.0 h",
+            cohortB: "Sleep ≥ 7.0 h",
+            note: "Associative comparison around the 7.0 h sleep boundary (ames-sleep). Not a causal claim.",
+          },
+          co2_vs_cognition: {
+            title: "Elevated ppCO₂ vs nominal air",
+            cohortA: "ppCO₂ ≥ 3.0 mmHg",
+            cohortB: "ppCO₂ < 3.0 mmHg",
+            note: "Associative comparison around the 3.0 mmHg NASA-STD-3001 Watch limit. Not a causal claim.",
+          },
+          stress_vs_sleep: {
+            title: "High stress vs low/moderate stress",
+            cohortA: "Stress ≥ 4/5",
+            cohortB: "Stress ≤ 3/5",
+            note: "Associative comparison between high-stress and baseline days. Not a causal claim.",
+          },
+        },
+        corrMetrics: {
+          mood: "Mean mood",
+          stress: "Mean stress",
+          fatigueCogPct: "Fatigue / fog days",
+          energy: "Mean energy",
+          sleep: "Mean sleep",
+          hr: "Mean HR",
+        },
+        basisIllustrative: "illustrative",
+        disclaimer: "Days 1–77 include simulated sample history. Cohort deltas are illustrative associations (n ≥ 3 per group), not causal or diagnostic claims.",
+      },
       stubImport: "CSV/JSON device data import and Houston micro-report export will run here in Stage 4.",
       nextStep: "Coming in next stage",
       loading: "Loading mission archive…",
@@ -285,7 +387,7 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
         desc: "Календарь с Day 1, психология и данные приборов",
         modules: {
           calendar: { title: "Календарь миссии", desc: "Дни 1–78: статистика дат, экран NO SIGNAL и ввод задним числом" },
-          analytics: { title: "Психика и корреляции", desc: "Перепады, темы мыслей и связь с физиологией (Этап 3)" },
+          analytics: { title: "Психика и корреляции", desc: "Волатильность, темы мыслей и ассоциации Mind↔Body" },
           importReport: { title: "Импорт и микроотчёт", desc: "Загрузка CSV/JSON с приборов и сводка для Хьюстона (Этап 4)" },
         },
       },
@@ -372,6 +474,8 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
       physioTitle: "Физиологическая сводка",
       psychTitle: "Психологический срез",
       tagsTitle: "Быстрые теги",
+      themesTitle: "Распознанные темы мыслей",
+      sentimentTitle: "Тональность",
       noteTitle: "Заметки и мысли",
       notePlaceholder: "Свободные мысли, наблюдения за сном или атмосферой в каюте…",
       physioOptional: "Физио-параметры (необязательно)",
@@ -408,7 +512,75 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
         focused: "Фокус",
         motivated: "Мотивация",
       },
-      stubAnalytics: "Детектор перепадов настроения, разбор тем мыслей и корреляции с телом будут добавлены на Этапе 3.",
+      sentiments: {
+        positive: "Позитивная",
+        mixed: "Смешанная",
+        negative: "Негативная",
+        neutral: "Нейтральная",
+      },
+      themes: {
+        isolation_family: "Изоляция и дом",
+        fatigue_sleep: "Усталость и сон",
+        cognitive_load: "Когнитивная нагрузка",
+        cabin_environment: "Среда каюты / CO₂",
+        crew_interpersonal: "Отношения в экипаже",
+        positive_recovery: "Ресурс и восстановление",
+      },
+      analytics: {
+        loading: "Расчёт аналитики миссии…",
+        coverageTitle: "Покрытие и средние",
+        loggedValue: (logged, total) => `${logged} / ${total} дн.`,
+        sampleTag: (n) => `${n} демо`,
+        manualTag: (n) => `${n} ручных`,
+        checkinTag: (n) => `${n} check-in`,
+        importTag: (n) => `${n} импорт`,
+        avgMood: "Ср. настроение",
+        avgStress: "Ср. стресс",
+        avgSleep: "Ср. сон",
+        volatility: "Волатильность σ (настр. / стресс)",
+        sparkTitle: "Динамика настроения и стресса",
+        legend: { mood: "Настроение", stress: "Стресс", shift: "Сдвиг ≥ 2" },
+        noSeries: "Недостаточно оценок настроения и стресса для графика.",
+        shiftsTitle: "Резкие сдвиги между записями",
+        noShifts: "Резких скачков (|ΔНастр.| ≥ 2 или |ΔСтресс| ≥ 2) нет.",
+        shiftRow: (fromDay, toDay) => `D${String(fromDay).padStart(2, "0")} → D${String(toDay).padStart(2, "0")}`,
+        themesTitle: "Частые темы мыслей",
+        noThemes: "Темы появятся после заполнения тегов или заметок.",
+        sentimentTitle: "Баланс тональности",
+        corrTitle: "Ассоциации Mind ↔ Body",
+        corrCohortSample: (nA, nB) => `n = ${nA} vs ${nB} дн.`,
+        corrInsufficient: "Нужно минимум 3 дня с данными в каждой когорте.",
+        corrPairs: {
+          sleep_vs_mood: {
+            title: "Недосып и достаточный сон",
+            cohortA: "Сон < 7.0 h",
+            cohortB: "Сон ≥ 7.0 h",
+            note: "Ассоциативное сравнение по порогу сна 7.0 h (ames-sleep). Не является причинной связью.",
+          },
+          co2_vs_cognition: {
+            title: "Повышенный ppCO₂ и норма",
+            cohortA: "ppCO₂ ≥ 3.0 mmHg",
+            cohortB: "ppCO₂ < 3.0 mmHg",
+            note: "Ассоциативное сравнение по порогу NASA-STD-3001 (3.0 mmHg). Не является причинной связью.",
+          },
+          stress_vs_sleep: {
+            title: "Высокий и умеренный стресс",
+            cohortA: "Стресс ≥ 4/5",
+            cohortB: "Стресс ≤ 3/5",
+            note: "Ассоциативное сравнение дней высокого стресса и базы. Не является причинной связью.",
+          },
+        },
+        corrMetrics: {
+          mood: "Ср. настроение",
+          stress: "Ср. стресс",
+          fatigueCogPct: "Дни с усталостью / туманом",
+          energy: "Ср. энергия",
+          sleep: "Ср. сон",
+          hr: "Ср. пульс",
+        },
+        basisIllustrative: "illustrative",
+        disclaimer: "Дни 1–77 включают демо-историю (Simulated sample history). Сравнения когорт — условные ассоциации (n ≥ 3 в каждой группе), не диагноз и не причинность.",
+      },
       stubImport: "Импорт CSV/JSON с приборов и экспорт микроотчёта для Хьюстона будут добавлены на Этапе 4.",
       nextStep: "Следующий этап",
       loading: "Загрузка журнала миссии…",

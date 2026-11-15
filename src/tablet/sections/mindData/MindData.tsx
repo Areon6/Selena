@@ -4,6 +4,7 @@ import type { DayEntry, MissionLog } from "../../../types";
 import { buildLogMap } from "../../../types";
 import type { ModuleProps } from "../../types";
 import { TABLET_I18N } from "../../tabletI18n";
+import { AnalyticsView } from "./AnalyticsView";
 import { CalendarView } from "./CalendarView";
 import { DayCard } from "./DayCard";
 import { DayForm } from "./DayForm";
@@ -158,12 +159,7 @@ function MindDataView({ lang, initialTab }: ModuleProps & { initialTab: SubTab }
           )}
         </>
       ) : subTab === "analytics" ? (
-        <div className="md-stub">
-          <div className="md-stub-icon">◈</div>
-          <div className="md-stub-title">{T.tabs.analytics}</div>
-          <div className="md-stub-sub">{T.stubAnalytics}</div>
-          <div className="md-stub-badge">{T.nextStep}</div>
-        </div>
+        <AnalyticsView lang={lang} />
       ) : (
         <div className="md-stub">
           <div className="md-stub-icon">⇥</div>

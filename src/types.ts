@@ -115,32 +115,34 @@ export interface BodyMetrics {
   bmrKcal: number;
 }
 
-// ─── Mission Log (Mind & Data) ────────────────────────────────────────────────
+// ─── Mission Log & Analytics (Mind & Data) ────────────────────────────────────
 
 export type DaySource = "sample" | "checkin" | "manual" | "import";
 export type DayRank = "A" | "B" | "C" | "D";
+export type Sentiment = "positive" | "mixed" | "negative" | "neutral";
 
 export interface DayEntry {
   day: number;
-  source?: DaySource;
+  source?: DaySource | null;
 
-  hr?: number;
-  bpSys?: number;
-  bpDia?: number;
-  spo2?: number;
-  ppco2?: number;
-  sleepHours?: number;
-  doseUsvH?: number;
+  hr?: number | null;
+  bpSys?: number | null;
+  bpDia?: number | null;
+  spo2?: number | null;
+  ppco2?: number | null;
+  sleepHours?: number | null;
+  doseUsvH?: number | null;
 
-  mood?: number;
-  energy?: number;
-  stress?: number;
-  tags?: string[];
-  note?: string;
-  themes?: string[];
+  mood?: number | null;
+  energy?: number | null;
+  stress?: number | null;
+  tags?: string[] | null;
+  note?: string | null;
+  themes?: string[] | null;
+  sentiment?: Sentiment | null;
 
-  level?: Level;
-  rank?: DayRank;
+  level?: Level | null;
+  rank?: DayRank | null;
 }
 
 export interface MissionLog {
@@ -154,4 +156,80 @@ export function buildLogMap(log: MissionLog): LogMap {
   const m = new Map<number, DayEntry>();
   for (const e of log.entries) m.set(e.day, e);
   return m;
+}
+
+export interface AnalyticsCoverage {
+  totalDays: number;
+  loggedDays: number;
+  sampleDays: number;
+  manualDays: number;
+  checkinDays: number;
+  importDays: number;
+  avgMood: number | null;
+  avgEnergy: number | null;
+  avgStress: number | null;
+  avgSleep: number | null;
+}
+
+export interface MoodPoint {
+  day: number;
+  mood: number | null;
+  energy: number | null;
+  stress: number | null;
+  level: Level;
+  isShift: boolean;
+}
+
+export interface MoodShift {
+  fromDay: number;
+  toDay: number;
+  deltaMood: number | null;
+  deltaStress: number | null;
+  fromMood: number | null;
+  toMood: number | null;
+  fromStress: number | null;
+  toStress: number | null;
+}
+
+export interface ThemeCount {
+  id: string;
+  count: number;
+  pct: number;
+}
+
+export interface SentimentCounts {
+  positive: number;
+  mixed: number;
+  negative: number;
+  neutral: number;
+}
+
+export interface CorrelationMetric {
+  key: string;
+  unit: string;
+  cohortA: number;
+  cohortB: number;
+  delta: number;
+  higherIsBad: boolean;
+}
+
+export interface CorrelationPair {
+  id: string;
+  nA: number;
+  nB: number;
+  available: boolean;
+  basis: Basis;
+  metric1: CorrelationMetric | null;
+  metric2: CorrelationMetric | null;
+}
+
+export interface MindAnalytics {
+  coverage: AnalyticsCoverage;
+  moodVolatility: number | null;
+  stressVolatility: number | null;
+  series: MoodPoint[];
+  shifts: MoodShift[];
+  themes: ThemeCount[];
+  sentiments: SentimentCounts;
+  correlations: CorrelationPair[];
 }
