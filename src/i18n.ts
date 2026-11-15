@@ -1,4 +1,4 @@
-export type Lang = "en" | "ru";
+export type Lang = "en";
 
 export interface ZoneItem {
   name: string;
@@ -7,9 +7,13 @@ export interface ZoneItem {
   action: string;
 }
 
-export const I18N = {
-  en: {
+const EN = {
     systemTitle: "On-board clinical decision support",
+    missionBadge: (day: number, delayMin: number) => `SOL / DAY ${day} · ${delayMin} MIN EARTH DELAY`,
+    crewSetup: "CREW SETUP",
+    crewChipTitle: "Crew profile and flight deck briefing",
+    tabletBtn: "Tablet",
+    offline: "OFFLINE",
     mission: "Mission",
     day: "Day",
     mode: "Mode",
@@ -102,100 +106,6 @@ export const I18N = {
       bp_check: { title: "Blood pressure and pulse", detail: "Seated, at rest. Log it in Tablet → Check-in." },
       sleep_log: { title: "Sleep and mood log", detail: "Hours slept and a 1–5 mood score. Log it in Tablet → Check-in." },
     },
-  },
-  ru: {
-    systemTitle: "Бортовая система клинической поддержки",
-    mission: "Миссия",
-    day: "День",
-    mode: "Режим",
-    autonomous: "Автономный",
-    linked: "Связь с ЦУП",
-    levels: {
-      nominal: "Норма",
-      watch: "Внимание",
-      critical: "Тревога",
-    },
-    emergencyProtocol: "Аварийный протокол",
-    fiveHazards: "NASA HRP · 5 угроз полёта",
-    earthLink: "Связь с Землёй",
-    houston: "Хьюстон",
-    crew: "Экипаж",
-    commsDelayText: (min: number) => `Задержка сигнала ${min} мин в одну сторону. Анализ работает офлайн на борту.`,
-    demoControls: "Симуляция инцидентов",
-    simulateSolar: "Солнечная вспышка (SPE)",
-    simulateCo2: "Отказ скруббера CO₂",
-    restoreCo2: "Восстановить скруббер CO₂",
-    resetScenario: "Сбросить сценарий",
-    bodyMapTitle: "Анатомическая карта · выберите зону",
-    vitals: {
-      heartRate: "Пульс",
-      bloodPressure: "Давление",
-      spo2: "SpO₂",
-      co2: "ppCO₂",
-      sleep: "Сон",
-      doseRate: "Доза",
-    },
-    selectedRegion: "Выбранная зона",
-    whyItMatters: "Почему это важно",
-    whatToDo: "Протокол действий",
-    countermeasures: "Предписанные меры",
-    sources: "Источники",
-    checked: "Проверено",
-    basis: {
-      nasa: "Стандарт NASA",
-      mixed: "NASA + условно",
-      illustrative: "Условный порог",
-    },
-    zones: {
-      brain: {
-        name: "Мозг · Сон и психика",
-        note: "Недосып в изоляции снижает точность решений. Держите стабильный график сна.",
-        why: "Изоляция и искусственный свет сбивают циркадный ритм. Дефицит сна быстро ухудшает когнитивные функции и настроение.",
-        action: "Соблюдайте окно сна, отмечайте настроение ежедневно и сообщайте экипажу при недосыпе две ночи подряд.",
-      },
-      eyes: {
-        name: "Глаза · Синдром SANS",
-        note: "Перераспределение жидкости к голове повышает риск отёка зрительного диска.",
-        why: "В невесомости жидкость смещается к голове, что может вызывать отёк диска зрительного нерва и уплощение сетчатки (SANS).",
-        action: "Делайте УЗИ зрительного нерва по графику, сверяйте с базой и отмечайте любое снижение чёткости.",
-      },
-      heart: {
-        name: "Сердечно-сосудистая",
-        note: "Показатели покоя в целевом диапазоне. Контроль сосудистой детренированности.",
-        why: "Без гравитации нагрузка на сердце снижается, миокард и сосудистый тонус постепенно адаптируются в минус.",
-        action: "Измеряйте давление и пульс в покое в одно и то же время. Не пропускайте аэробные сессии.",
-      },
-      lungs: {
-        name: "Лёгкие · Атмосфера",
-        note: "CO₂ накапливается в отсеке до сирен. Головная боль и вялость — ранний маркер.",
-        why: "В замкнутом объёме CO₂ застаивается у спальных зон. Симптомы начинаются раньше, чем сработает аварийный порог.",
-        action: "Контролируйте ppCO₂ в каюте, усиливайте вентиляцию и фиксируйте затяжные подъёмы выше 3.0 mmHg.",
-      },
-      bones: {
-        name: "Кости и мышцы",
-        note: "Без осевой нагрузки кость теряет минеральную плотность. База — ARED.",
-        why: "В невесомости без силовых нагрузок скелет теряет около 1–1.5% плотности кости в месяц на длительных миссиях.",
-        action: "Выполняйте силовую программу ARED и поддерживайте норму белка и витамина D.",
-      },
-      radiation: {
-        name: "Радиация",
-        note: "Фон космических лучей в норме. Штормовой протокол в готовности.",
-        why: "Галактические лучи дают постоянный фон, а солнечные вспышки (SPE) способны за часы резко повысить дозу.",
-        action: "При тревоге перейдите в экранированное укрытие и фиксируйте личный дозиметр.",
-      },
-    } as Record<string, ZoneItem>,
-    hazards: {
-      radiation: { name: "Космическая радиация", detail: "накопленная (симуляция)" },
-      isolation: { name: "Изоляция и замкнутость", detail: "Сон и чек-ин экипажа" },
-      distance: { name: "Удалённость от Земли", detail: "Офлайн-поддержка решений" },
-      gravity: { name: "Гравитационные поля", detail: "Нагрузка костей и зрение" },
-      environment: { name: "Замкнутая среда", detail: "Лимит 3.0 mmHg · NASA-STD-3001" },
-    },
-    tasks: {
-      ared: { title: "Силовая тренировка ARED", detail: "Приседания и становая тяга для защиты костной ткани." },
-      optic_scan: { title: "УЗИ зрительного нерва", detail: "Самостоятельное сканирование оболочки нерва (SANS)." },
-      bp_check: { title: "Давление и пульс", detail: "Сидя в покое. Внести в Планшет → Check-in." },
-      sleep_log: { title: "Сон и самочувствие", detail: "Часы сна и оценка 1–5. Внести в Планшет → Check-in." },
-    },
-  },
 };
+
+export const I18N: Record<Lang, typeof EN> = { en: EN };
