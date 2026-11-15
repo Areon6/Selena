@@ -71,9 +71,7 @@ export function WelcomeScreen({
 
   const initialSlot = activeOf(roster);
 
-  const [phase, setPhase] = useState<Phase>(() =>
-    !reopened && !initialSlot.crew.onboarded ? "hello" : "baseline",
-  );
+  const [phase, setPhase] = useState<Phase>(() => (!reopened ? "hello" : "baseline"));
   const [editingId, setEditingId] = useState<string>(initialSlot.id);
   const [presetKind, setPresetKind] = useState<"nasa-reference" | "custom">(initialSlot.presetKind);
   const [missionBio, setMissionBio] = useState(initialSlot.missionBio);
@@ -192,6 +190,43 @@ export function WelcomeScreen({
   };
 
   const switchSlot = async (id: string) => {
+    if (id === editingId) return;
+    const prev = roster.slots.find((s) => s.id === editingId);
+    const dirtyExisting =
+      !!prev &&
+      (prev.crew.callsign !== (callsign.trim() === "" ? placeholder : callsign.trim().toUpperCase()) ||
+        prev.crew.fullName !== fullName.trim() ||
+        prev.crew.role !== role ||
+        prev.crew.ageYears !== Math.round(ageV) ||
+        prev.crew.baselineHrBpm !== Math.round(hrV) ||
+        prev.crew.baselineSysMmhg !== Math.round(sysV) ||
+        prev.crew.baselineDiaMmhg !== Math.round(diaV) ||
+        prev.crew.defaultEvaHours !== evaV ||
+        prev.body.sex !== body.draft.sex ||
+        prev.body.heightCm !== body.draft.heightCm ||
+        prev.body.weightKg !== body.draft.weightKg ||
+        prev.body.bodyFatPct !== body.draft.bodyFatPct ||
+        prev.body.muscularity !== body.draft.muscularity ||
+        prev.body.shoulderWidth !== body.draft.shoulderWidth ||
+        prev.body.waist !== body.draft.waist ||
+        prev.body.hips !== body.draft.hips);
+    const dirtyNew =
+      editingId === "" &&
+      (fullName.trim() !== "" ||
+        Math.round(hrV) !== 66 ||
+        Math.round(sysV) !== 118 ||
+        Math.round(diaV) !== 76 ||
+        body.draft.heightCm !== 175 ||
+        body.draft.weightKg !== 72 ||
+        body.draft.sex !== "neutral");
+    if (dirtyExisting || dirtyNew) {
+      if (!valid) {
+        setErr("Fix validation errors before switching slots.");
+        return;
+      }
+      const ok = await persistCurrent(prev?.crew.walkthroughCompleted ?? true);
+      if (!ok) return;
+    }
     setBusy(true);
     setErr(null);
     try {
@@ -363,7 +398,7 @@ export function WelcomeScreen({
               disabled={busy}
               onClick={() => void launchDefaults()}
             >
-              {busy ? "Loading…" : "Use Mission Defaults"}
+              {busy ? "Loading…" : initialSlot.crew.onboarded ? `Continue as ${initialSlot.crew.callsign}` : "Use Mission Defaults"}
             </button>
             <button
               type="button"
@@ -395,7 +430,7 @@ export function WelcomeScreen({
                     </div>
                     <div className="wc-preset-name">{slot.crew.fullName || slot.crew.callsign}</div>
                     <div className="wc-preset-meta">
-                      {slot.crew.role} · Age {slot.crew.ageYears} · {slot.body.heightCm} cm / {slot.body.weightKg} kg
+                      {slot.crew.role} · {slot.crew.baselineHrBpm} bpm · {slot.crew.baselineSysMmhg}/{slot.crew.baselineDiaMmhg} mmHg · {slot.body.heightCm} cm / {slot.body.weightKg} kg
                     </div>
                     {slot.missionBio && <p className="wc-preset-bio">{slot.missionBio}</p>}
                     {src && <div className="wc-preset-src">{src.url}</div>}

@@ -215,9 +215,9 @@ pub fn compute_level_rank(e: &DayEntry) -> (DayLevel, DayRank, u8, u8, Vec<Score
     }
     if let Some(hr) = e.hr {
         let actual = format!("{hr:.0} bpm");
-        if hr >= 130.0 || hr < 45.0 {
+        if !(45.0..130.0).contains(&hr) {
             f.push(factor("hr_crit", actual, "50–99 bpm", -24, Critical, "illustrative"));
-        } else if hr >= 100.0 || hr < 50.0 {
+        } else if !(50.0..100.0).contains(&hr) {
             f.push(factor("hr_watch", actual, "50–99 bpm", -10, Watch, "illustrative"));
         }
     }

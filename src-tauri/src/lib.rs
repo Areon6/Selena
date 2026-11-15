@@ -194,6 +194,8 @@ struct Inner {
     tasks: Vec<Task>,
     sleep: Option<SleepEntry>,
     bp: Option<BpEntry>,
+    crew_baseline: (f64, f64, f64),
+    crew_mtime: Option<std::time::SystemTime>,
 }
 
 struct AppState(Mutex<Inner>);
@@ -208,6 +210,8 @@ impl AppState {
             tasks: default_tasks(),
             sleep: None,
             bp: None,
+            crew_baseline: (62.0, 116.0, 74.0),
+            crew_mtime: None,
         }))
     }
 }
@@ -306,9 +310,10 @@ fn build_report(inner: &Inner) -> HealthReport {
     let done = |id: &str| tasks.iter().any(|x| x.id == id && x.done);
 
     // telemetry (simulated)
-    let heart_rate = 68.0 + 3.0 * wobble(t, 17.0, 0.0) + 1.5 * wobble(t, 5.0, 0.3) + 22.0 * stress;
-    let systolic = 118.0 + 2.0 * wobble(t, 23.0, 0.2) + 10.0 * stress;
-    let diastolic = 76.0 + 1.5 * wobble(t, 29.0, 0.5) + 5.0 * stress;
+    let (base_hr, base_sys, base_dia) = inner.crew_baseline;
+    let heart_rate = base_hr + 3.0 * wobble(t, 17.0, 0.0) + 1.5 * wobble(t, 5.0, 0.3) + 22.0 * stress;
+    let systolic = base_sys + 2.0 * wobble(t, 23.0, 0.2) + 10.0 * stress;
+    let diastolic = base_dia + 1.5 * wobble(t, 29.0, 0.5) + 5.0 * stress;
     let spo2 = 97.5 + 0.4 * wobble(t, 31.0, 0.1);
     let temp = 36.7 + 0.05 * wobble(t, 60.0, 0.4);
 
@@ -595,8 +600,12 @@ fn build_report(inner: &Inner) -> HealthReport {
 // ───────────────────────── IPC commands ─────────────────────────
 
 #[tauri::command]
-fn get_health_report(state: State<'_, AppState>) -> HealthReport {
-    let inner = state.0.lock().unwrap_or_else(PoisonError::into_inner);
+fn get_health_report(app: AppHandle, state: State<'_, AppState>) -> HealthReport {
+    let mut inner = state.0.lock().unwrap_or_else(PoisonError::into_inner);
+    if let Some((mt, vitals)) = crew_profile::active_vitals_with_mtime(&app, inner.crew_mtime) {
+        inner.crew_mtime = Some(mt);
+        inner.crew_baseline = vitals;
+    }
     build_report(&inner)
 }
 

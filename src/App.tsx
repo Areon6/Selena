@@ -10,7 +10,7 @@ import { Tablet } from "./tablet/Tablet";
 import { TABLET_HOME, type TabletPath } from "./tablet/types";
 import { TABLET_I18N } from "./tablet/tabletI18n";
 import { WelcomeScreen, roleAbbr } from "./components/WelcomeScreen";
-import { getCrewRoster, type CrewRoster, type CrewSlot } from "./api/stage6";
+import { getCrewRoster, saveCrewSlot, type CrewRoster, type CrewSlot } from "./api/stage6";
 
 const LANG: Lang = "en";
 const HISTORY = 90;
@@ -125,13 +125,20 @@ export default function App() {
       .then((r) => {
         if (!alive) return;
         setRoster(r);
-        const slot = activeSlotOf(r);
-        if (!slot.crew.onboarded) setWelcomeOpen(true);
+        setWelcomeOpen(true);
       })
       .catch((e) => alive && setError(String(e)));
     return () => {
       alive = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const stopDrag = (e: DragEvent) => {
+      e.preventDefault();
+    };
+    document.addEventListener("dragstart", stopDrag, true);
+    return () => document.removeEventListener("dragstart", stopDrag, true);
   }, []);
 
   if (!report || !body.loaded || !roster) {
@@ -145,6 +152,27 @@ export default function App() {
 
   const activeSlot = activeSlotOf(roster);
   const crew = activeSlot.crew;
+  const syncedBody: typeof body = {
+    ...body,
+    apply: async () => {
+      await body.apply();
+      const d = body.draft;
+      const updated = await saveCrewSlot({
+        ...activeSlot,
+        body: {
+          sex: d.sex,
+          heightCm: d.heightCm,
+          weightKg: d.weightKg,
+          bodyFatPct: d.bodyFatPct,
+          muscularity: d.muscularity,
+          shoulderWidth: d.shoulderWidth,
+          waist: d.waist,
+          hips: d.hips,
+        },
+      });
+      setRoster(updated);
+    },
+  };
 
   const zone = report.zones.find((z) => z.id === selected) ?? report.zones[0];
   const localizedZone = t.zones[zone.id];
@@ -458,7 +486,7 @@ export default function App() {
           <Tablet
             lang={lang}
             report={report}
-            body={body}
+            body={syncedBody}
             path={tabletPath}
             onNavigate={setTabletPath}
             onClose={() => setTabletOpen(false)}
@@ -477,6 +505,7 @@ export default function App() {
           onClose={() => {
             setWelcomeOpen(false);
             body.commitGeometry();
+            void pull();
           }}
         />
       )}

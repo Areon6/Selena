@@ -30,15 +30,18 @@ SELENA operates completely self-contained with zero runtime dependencies on exte
 
 ---
 
+- **Crew Roster & Onboarding (`crew_profile.rs`, `WelcomeScreen.tsx`):** Up to 7 saved crew slots (ISS max; Mars DRA 5.0 baseline is 6), Rubio/Koch presets, animated `Hello.` intro, synced with live vitals and 3D `My Body`.
+- **Workout & Fuel (`workout_log.rs`, `src/tablet/sections/workout/`):** ARED/cardio log paired with NASA-STD-3001 Vol 2 energy & hydration targets and inline `NASA.GOV` sources.
+
 ## Scientific Grounding & Metric Honesty
 
-All clinical thresholds and references are cataloged in `src/sources.ts` (verified `2026-11-14`) with explicit provenance (`basis: "nasa" | "mixed" | "illustrative"`):
+All clinical thresholds and references are cataloged in `src/sources.ts` (verified `2026-11-15`) with explicit provenance (`basis: "nasa" | "mixed" | "illustrative"`):
 
 - **Verified Numeric Limits (NASA / OCHMO / Ames)**
   - **CO₂ (`std-co2`):** `NASA-STD-3001 Vol 2 [V2 6004]` — 1-hour average habitable `ppCO₂ <= 3 mmHg` (`https://www.nasa.gov/reference/6-0-natural-and-induced-environments-vol-2`)
   - **CO₂ Symptoms (`tb-co2`):** `OCHMO-TB-004 Carbon Dioxide` — symptoms reported above `4.5 mmHg` (`https://www.nasa.gov/wp-content/uploads/2023/12/ochmo-tb-004-carbon-dioxide.pdf`)
   - **Sleep (`ames-sleep`):** `NASA Ames (Flynn-Evans et al.)` — consensus `>= 7 h` sleep; ISS crew averaged `7.33 h` (`https://humansystems.arc.nasa.gov/publications/Humans_Sufficient_Sleep_Microgravity.pdf`)
-  - **Nutrition (`std-nutrition`):** `NASA-STD-3001 Vol 2 [V2 7003 / V2 7004]` — `3,035 kcal/day` average (`+200 kcal` per EVA hour) (`https://www.nasa.gov/reference/7-0-habit-ability-functions-vol-2/`)
+  - **Nutrition (`std-nutrition`):** `NASA-STD-3001 Vol 2 [V2 7003 / V2 7004]` — `3,035 kcal/day` average (`+200 kcal/EVA hr`) & Hydration `2,500 mL/day` (`+240 mL/EVA hr`, `[V2 6109 / V2 11030]`) (`https://standards.nasa.gov/standard/nasa/nasa-std-3001_vol_2`)
   - **Radiation (`tb-radiation`):** `OCHMO Radiation Protection Brief [V1 4030 / V1 4031]` — career limit `< 600 mSv`, SPE limit `< 250 mSv` (`https://www.nasa.gov/wp-content/uploads/2023/03/radiation-protection-technical-brief-ochmo.pdf`)
 - **NASA HRP Hazards (`https://www.nasa.gov/hrp/hazards/`, updated `2026-06-12`):** Space Radiation, Isolation and Confinement, Distance from Earth, Gravity Fields, Hostile/Closed Environments.
 - **NASA HRP Risks (`https://www.nasa.gov/hrp/risks/`, updated `2026-07-21`):** Bone Changes, Reduced Cardiorespiratory and Musculoskeletal Fitness, SANS, Cardiovascular Adaptations, Inadequate Sleep and Irregular Schedules, Behavioral Changes and Psychiatric Disorders, Radiation-Induced Cancers, Hypoxia, Inadequate Food and Nutrition.

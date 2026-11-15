@@ -395,16 +395,31 @@ fn save_roster_to_disk(app: &AppHandle, roster: &CrewRoster) -> Result<(), Strin
 
 fn load_or_init_roster(app: &AppHandle) -> Result<CrewRoster, String> {
     let path = roster_path(app)?;
-    if path.exists() {
-        if let Ok(raw) = fs::read_to_string(&path) {
-            if let Ok(parsed) = serde_json::from_str::<CrewRoster>(&raw) {
-                return Ok(sanitize_roster(parsed));
-            }
-        }
+    if path.exists()
+        && let Ok(raw) = fs::read_to_string(&path)
+        && let Ok(parsed) = serde_json::from_str::<CrewRoster>(&raw)
+    {
+        return Ok(sanitize_roster(parsed));
     }
     let fresh = default_roster();
     save_roster_to_disk(app, &fresh)?;
     Ok(fresh)
+}
+
+pub(crate) fn active_vitals_with_mtime(
+    app: &AppHandle,
+    cached_mtime: Option<std::time::SystemTime>,
+) -> Option<(std::time::SystemTime, (f64, f64, f64))> {
+    let path = roster_path(app).ok()?;
+    let mtime = fs::metadata(&path).ok()?.modified().ok()?;
+    if cached_mtime == Some(mtime) {
+        return None;
+    }
+    let raw = fs::read_to_string(&path).ok()?;
+    let parsed = serde_json::from_str::<CrewRoster>(&raw).ok()?;
+    let clean = sanitize_roster(parsed);
+    let c = active_crew_from_roster(&clean);
+    Some((mtime, (c.baseline_hr_bpm, c.baseline_sys_mmhg, c.baseline_dia_mmhg)))
 }
 
 // ── Tauri IPC commands ───────────────────────────────────────────────────────
