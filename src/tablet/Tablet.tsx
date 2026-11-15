@@ -27,9 +27,10 @@ export function Tablet({ lang, report, body, path, onNavigate, onClose }: Props)
   const back = () =>
     onNavigate(module ? { section: section!.id, module: null } : TABLET_HOME);
 
-  const crumbs: string[] = [T.title];
+  const crumbs: string[] = [];
   if (sectionTxt) crumbs.push(sectionTxt.title);
   if (moduleTxt) crumbs.push(moduleTxt.title);
+  const heading = crumbs.length > 0 ? crumbs.join(" · ") : T.title;
 
   const Body = module?.component;
 
@@ -42,7 +43,7 @@ export function Tablet({ lang, report, body, path, onNavigate, onClose }: Props)
               ‹
             </button>
           )}
-          <span className="eyebrow">{crumbs.join(" / ")}</span>
+          <span className="tb-heading">{heading}</span>
         </div>
         <button className="tb-icon" onClick={onClose} aria-label={T.close} title={T.close}>
           ✕

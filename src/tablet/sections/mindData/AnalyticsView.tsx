@@ -50,9 +50,9 @@ function Sparkline({
     return <div className="an-empty">{emptyLabel}</div>;
   }
 
-  const w = 304;
-  const h = 116;
-  const padL = 18;
+  const w = 312;
+  const h = 112;
+  const padL = 16;
   const padR = 8;
   const padT = 10;
   const padB = 20;
@@ -66,21 +66,26 @@ function Sparkline({
     return padT + ((5 - clamped) / 4) * plotH;
   };
 
-  const moodPts: { x: number; y: number; shift: boolean; day: number }[] = [];
-  const stressPts: { x: number; y: number; day: number }[] = [];
+  const moodPts: { x: number; y: number; shift: boolean; day: number; val: number }[] = [];
+  const stressPts: { x: number; y: number; day: number; val: number }[] = [];
 
   series.forEach((p, i) => {
     const x = xFor(i);
     if (p.mood != null) {
-      moodPts.push({ x, y: yFor(p.mood), shift: p.isShift, day: p.day });
+      moodPts.push({ x, y: yFor(p.mood), shift: p.isShift, day: p.day, val: p.mood });
     }
     if (p.stress != null) {
-      stressPts.push({ x, y: yFor(p.stress), day: p.day });
+      stressPts.push({ x, y: yFor(p.stress), day: p.day, val: p.stress });
     }
   });
 
   const moodLine = moodPts.map((pt) => `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`).join(" ");
   const stressLine = stressPts.map((pt) => `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`).join(" ");
+  const moodArea =
+    moodPts.length >= 2
+      ? `M${moodPts[0].x.toFixed(1)},${(padT + plotH).toFixed(1)} L${moodLine.replace(/ /g, " L")} L${moodPts[moodPts.length - 1].x.toFixed(1)},${(padT + plotH).toFixed(1)} Z`
+      : "";
+
   const firstDay = series[0]?.day ?? 1;
   const lastDay = series[series.length - 1]?.day ?? firstDay;
 
@@ -102,13 +107,20 @@ function Sparkline({
       </div>
 
       <svg className="an-spark-svg" viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Mood and stress trajectory">
+        <defs>
+          <linearGradient id="anMoodGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#43c0ae" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="#43c0ae" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
         {[1, 2, 3, 4, 5].map((tick) => {
           const y = yFor(tick);
           return (
             <g key={tick}>
               <line x1={padL} y1={y} x2={w - padR} y2={y} className="an-grid-line" />
               {tick === 1 || tick === 3 || tick === 5 ? (
-                <text x={4} y={y + 3} className="an-axis-text">
+                <text x={3} y={y + 3} className="an-axis-text">
                   {tick}
                 </text>
               ) : null}
@@ -116,6 +128,7 @@ function Sparkline({
           );
         })}
 
+        {moodArea && <path d={moodArea} fill="url(#anMoodGrad)" />}
         {stressPts.length >= 2 && (
           <polyline fill="none" points={stressLine} className="an-line-stress" />
         )}
@@ -124,17 +137,21 @@ function Sparkline({
         )}
 
         {stressPts.map((pt) => (
-          <circle key={`s-${pt.day}`} cx={pt.x} cy={pt.y} r={2.1} className="an-pt-stress" />
+          <circle key={`s-${pt.day}`} cx={pt.x} cy={pt.y} r={2} className="an-pt-stress">
+            <title>{`D${pt.day} · Stress ${pt.val}/5`}</title>
+          </circle>
         ))}
         {moodPts.map((pt) => (
           <g key={`m-${pt.day}`}>
-            {pt.shift && <circle cx={pt.x} cy={pt.y} r={5} className="an-pt-shift-ring" />}
+            {pt.shift && <circle cx={pt.x} cy={pt.y} r={4.8} className="an-pt-shift-ring" />}
             <circle
               cx={pt.x}
               cy={pt.y}
-              r={pt.shift ? 3 : 2.3}
+              r={pt.shift ? 2.8 : 2.2}
               className={pt.shift ? "an-pt-shift" : "an-pt-mood"}
-            />
+            >
+              <title>{`D${pt.day} · Mood ${pt.val}/5`}</title>
+            </circle>
           </g>
         ))}
 
@@ -149,7 +166,7 @@ function Sparkline({
   );
 }
 
-function CorrelationCard({
+function CorrelationRow({
   pair,
   lang,
 }: {
@@ -157,30 +174,19 @@ function CorrelationCard({
   lang: Lang;
 }) {
   const A = TABLET_I18N[lang].mindData.analytics;
-  const copy = A.corrPairs[pair.id] ?? {
-    title: pair.id,
-    cohortA: "A",
-    cohortB: "B",
-    note: "",
-  };
+  const copy = A.corrPairs[pair.id] ?? { title: pair.id, cohorts: "" };
 
   const metrics = [pair.metric1, pair.metric2].filter(
     (m): m is CorrelationMetric => m !== null,
   );
 
   return (
-    <div className="an-corr-card" data-basis={pair.basis}>
-      <div className="an-corr-head">
+    <div className="an-corr-item" data-basis={pair.basis}>
+      <div className="an-corr-top">
         <span className="an-corr-title">{copy.title}</span>
-        <span className="an-basis-tag">{A.basisIllustrative}</span>
-      </div>
-
-      <div className="an-corr-cohorts">
-        <span>
-          {copy.cohortA} <b>vs</b> {copy.cohortB}
-        </span>
         <span className="an-corr-n">{A.corrCohortSample(pair.nA, pair.nB)}</span>
       </div>
+      {copy.cohorts && <div className="an-corr-sub">{copy.cohorts}</div>}
 
       {!pair.available || metrics.length === 0 ? (
         <div className="an-corr-unavail">{A.corrInsufficient}</div>
@@ -189,10 +195,10 @@ function CorrelationCard({
           {metrics.map((m) => {
             const tone = deltaTone(m);
             return (
-              <div key={m.key} className="an-corr-row">
+              <div key={m.key} className="an-corr-metric">
                 <span className="an-corr-mname">{A.corrMetrics[m.key] ?? m.key}</span>
                 <span className="an-corr-vals">
-                  {fmtMetricVal(m.cohortA, m.unit)} <span className="an-vs">/</span>{" "}
+                  {fmtMetricVal(m.cohortA, m.unit)} <span className="an-vs">vs</span>{" "}
                   {fmtMetricVal(m.cohortB, m.unit)}
                 </span>
                 <span className={`an-delta an-delta-${tone}`}>{fmtMetricDelta(m)}</span>
@@ -201,8 +207,6 @@ function CorrelationCard({
           })}
         </div>
       )}
-
-      {copy.note && <div className="an-corr-note">{copy.note}</div>}
     </div>
   );
 }
@@ -233,15 +237,9 @@ export function AnalyticsView({ lang }: Props) {
     };
   }, []);
 
-  if (loading) {
-    return <div className="md-loading">{A.loading}</div>;
-  }
-  if (err) {
-    return <div className="tb-warn-box tb-err">{err}</div>;
-  }
-  if (!data) {
-    return null;
-  }
+  if (loading) return <div className="md-loading">{A.loading}</div>;
+  if (err) return <div className="tb-warn-box tb-err">{err}</div>;
+  if (!data) return null;
 
   const { coverage, sentiments, correlations } = data;
   const sortedThemes = [...data.themes].sort(
@@ -259,55 +257,55 @@ export function AnalyticsView({ lang }: Props) {
   return (
     <div className="an-root">
       {/* Coverage & Baseline */}
-      <section className="an-card">
-        <div className="an-card-head">
-          <span className="an-card-title">{A.coverageTitle}</span>
-          <span className="an-card-badge">
+      <section className="an-section an-section-first">
+        <div className="an-sec-head">
+          <span className="an-sec-title">{A.coverageTitle}</span>
+          <span className="an-sec-badge">
             {A.loggedValue(coverage.loggedDays, coverage.totalDays)}
           </span>
         </div>
 
-        <div className="an-source-pills">
+        <div className="an-sources">
           {coverage.sampleDays > 0 && (
-            <span className="an-src-tag an-src-sample">{A.sampleTag(coverage.sampleDays)}</span>
+            <span className="an-src-chip an-src-sample">{A.sampleTag(coverage.sampleDays)}</span>
           )}
           {coverage.manualDays > 0 && (
-            <span className="an-src-tag">{A.manualTag(coverage.manualDays)}</span>
+            <span className="an-src-chip">{A.manualTag(coverage.manualDays)}</span>
           )}
           {coverage.checkinDays > 0 && (
-            <span className="an-src-tag">{A.checkinTag(coverage.checkinDays)}</span>
+            <span className="an-src-chip">{A.checkinTag(coverage.checkinDays)}</span>
           )}
           {coverage.importDays > 0 && (
-            <span className="an-src-tag">{A.importTag(coverage.importDays)}</span>
+            <span className="an-src-chip">{A.importTag(coverage.importDays)}</span>
           )}
         </div>
 
-        <div className="an-kpi-grid">
+        <div className="an-kpi-row">
           <div className="an-kpi">
-            <span className="an-kpi-label">{A.avgMood}</span>
-            <span className="an-kpi-val">{fmtOpt(coverage.avgMood, 1, "/5")}</span>
+            <span className="an-kpi-val">{fmtOpt(coverage.avgMood, 1)}</span>
+            <span className="an-kpi-label">{A.avgMood} /5</span>
           </div>
           <div className="an-kpi">
-            <span className="an-kpi-label">{A.avgStress}</span>
-            <span className="an-kpi-val">{fmtOpt(coverage.avgStress, 1, "/5")}</span>
+            <span className="an-kpi-val">{fmtOpt(coverage.avgStress, 1)}</span>
+            <span className="an-kpi-label">{A.avgStress} /5</span>
           </div>
           <div className="an-kpi">
+            <span className="an-kpi-val">{fmtOpt(coverage.avgSleep, 1, "h")}</span>
             <span className="an-kpi-label">{A.avgSleep}</span>
-            <span className="an-kpi-val">{fmtOpt(coverage.avgSleep, 1, " h")}</span>
           </div>
           <div className="an-kpi">
-            <span className="an-kpi-label">{A.volatility}</span>
             <span className="an-kpi-val">
-              {fmtOpt(data.moodVolatility, 2)} / {fmtOpt(data.stressVolatility, 2)}
+              {fmtOpt(data.moodVolatility, 2)}
             </span>
+            <span className="an-kpi-label">{A.volatility}</span>
           </div>
         </div>
       </section>
 
       {/* Trajectory Sparkline + Sharp Shifts */}
-      <section className="an-card">
-        <div className="an-card-head">
-          <span className="an-card-title">{A.sparkTitle}</span>
+      <section className="an-section">
+        <div className="an-sec-head">
+          <span className="an-sec-title">{A.sparkTitle}</span>
         </div>
         <Sparkline series={data.series} legend={A.legend} emptyLabel={A.noSeries} />
 
@@ -338,9 +336,9 @@ export function AnalyticsView({ lang }: Props) {
       </section>
 
       {/* Thought Themes & Sentiment */}
-      <section className="an-card">
-        <div className="an-card-head">
-          <span className="an-card-title">{A.themesTitle}</span>
+      <section className="an-section">
+        <div className="an-sec-head">
+          <span className="an-sec-title">{A.themesTitle}</span>
         </div>
         {sortedThemes.length === 0 ? (
           <div className="an-empty">{A.noThemes}</div>
@@ -351,13 +349,13 @@ export function AnalyticsView({ lang }: Props) {
                 <div className="an-theme-meta">
                   <span className="an-theme-name">{T.themes[th.id] ?? th.id}</span>
                   <span className="an-theme-count">
-                    {th.count} ({th.pct.toFixed(0)}%)
+                    {th.count} · {th.pct.toFixed(0)}%
                   </span>
                 </div>
                 <div className="an-bar-track">
                   <div
                     className="an-bar-fill"
-                    style={{ width: `${Math.max(4, Math.min(100, th.pct))}%` }}
+                    style={{ width: `${Math.max(3, Math.min(100, th.pct))}%` }}
                   />
                 </div>
               </div>
@@ -366,29 +364,40 @@ export function AnalyticsView({ lang }: Props) {
         )}
 
         {sentimentTotal > 0 && (
-          <>
+          <div className="an-sent-wrap">
             <div className="an-subhead">{A.sentimentTitle}</div>
-            <div className="an-sentiments">
+            <div className="an-sent-bar" aria-hidden="true">
+              {sentimentList.map((s) =>
+                s.count > 0 ? (
+                  <span
+                    key={s.key}
+                    className={`an-sent-seg an-sent-seg-${s.key}`}
+                    style={{ width: `${(s.count / sentimentTotal) * 100}%` }}
+                  />
+                ) : null,
+              )}
+            </div>
+            <div className="an-sent-legend">
               {sentimentList.map((s) => (
-                <div key={s.key} className={`an-sent-item an-sent-${s.key}`}>
-                  <span className="an-sent-label">{T.sentiments[s.key]}</span>
-                  <span className="an-sent-val">{s.count}</span>
-                </div>
+                <span key={s.key} className={`an-sent-item an-sent-${s.key}`}>
+                  <i className="an-sent-dot" />
+                  {T.sentiments[s.key]} <b>{s.count}</b>
+                </span>
               ))}
             </div>
-          </>
+          </div>
         )}
       </section>
 
       {/* Mind <-> Body Correlations */}
-      <section className="an-card">
-        <div className="an-card-head">
-          <span className="an-card-title">{A.corrTitle}</span>
+      <section className="an-section">
+        <div className="an-sec-head">
+          <span className="an-sec-title">{A.corrTitle}</span>
           <span className="an-basis-tag">{A.basisIllustrative}</span>
         </div>
         <div className="an-corr-list">
           {correlations.map((pair) => (
-            <CorrelationCard key={pair.id} pair={pair} lang={lang} />
+            <CorrelationRow key={pair.id} pair={pair} lang={lang} />
           ))}
         </div>
       </section>

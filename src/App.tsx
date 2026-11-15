@@ -139,36 +139,31 @@ export default function App() {
           <span className="tag">{t.systemTitle}</span>
         </div>
         <div className="top-meta">
-          <div className="chip" style={{ cursor: "pointer", userSelect: "none" }}>
-            <span
+          <div className="chip chip-lang">
+            <button
+              type="button"
+              className="lang-opt"
+              data-active={lang === "en"}
               onClick={() => setLang("en")}
-              style={{
-                color: lang === "en" ? "var(--teal)" : "var(--faint)",
-                fontWeight: lang === "en" ? 700 : 400,
-              }}
             >
               EN
-            </span>
-            <span style={{ color: "var(--line2)" }}>/</span>
-            <span
+            </button>
+            <span className="lang-sep">/</span>
+            <button
+              type="button"
+              className="lang-opt"
+              data-active={lang === "ru"}
               onClick={() => setLang("ru")}
-              style={{
-                color: lang === "ru" ? "var(--teal)" : "var(--faint)",
-                fontWeight: lang === "ru" ? 700 : 400,
-              }}
             >
               RU
-            </span>
+            </button>
           </div>
 
           <button
-            className="chip"
+            type="button"
+            className="chip chip-btn"
+            data-active={tabletOpen}
             onClick={() => setTabletOpen((o) => !o)}
-            style={{
-              cursor: "pointer",
-              color: tabletOpen ? "var(--teal)" : undefined,
-              borderColor: tabletOpen ? "var(--teal)" : undefined,
-            }}
           >
             ▣ {TABLET_I18N[lang].open}
           </button>
@@ -215,14 +210,16 @@ export default function App() {
             <ul className="hazards">
               {report.hazards.map((h, i) => {
                 const locHazard = t.hazards[h.id as keyof typeof t.hazards];
+                const detail =
+                  h.id === "radiation"
+                    ? `${report.environment.cumulativeDoseMsv.toFixed(1)} mSv · ${locHazard?.detail ?? h.detail}`
+                    : (locHazard?.detail ?? h.detail);
                 return (
                   <li key={h.id} data-level={h.level}>
                     <span className="idx">{String(i + 1).padStart(2, "0")}</span>
                     <div className="hz-body">
                       <div className="hz-name">{locHazard?.name ?? h.name}</div>
-                      <div className="hz-detail">
-                        {h.detail} · {t.basis[h.basis]}
-                      </div>
+                      <div className="hz-detail">{detail}</div>
                     </div>
                     <div className="hz-value">
                       <span className="dot" />
@@ -352,7 +349,7 @@ export default function App() {
               </span>
             </div>
             <div className="metric">{zone.metric}</div>
-            <p className="note">{zone.note}</p>
+            <p className="note">{localizedZone?.note ?? zone.note}</p>
             {localizedZone && (
               <dl>
                 <dt>{t.whyItMatters}</dt>
