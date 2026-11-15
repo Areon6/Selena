@@ -16,6 +16,7 @@ use std::time::Instant;
 use tauri::{AppHandle, State};
 
 mod analytics;
+mod importer;
 mod lexicon;
 mod mission_log;
 mod profile;
@@ -720,7 +721,11 @@ pub fn run() {
             mission_log::get_mission_log,
             mission_log::save_day_entry,
             mission_log::reset_mission_log,
-            analytics::get_mind_analytics
+            analytics::get_mind_analytics,
+            importer::import_device_log,
+            importer::export_houston_report,
+            importer::import_device_log,
+            importer::export_houston_report
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

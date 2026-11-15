@@ -8,12 +8,13 @@ import { AnalyticsView } from "./AnalyticsView";
 import { CalendarView } from "./CalendarView";
 import { DayCard } from "./DayCard";
 import { DayForm } from "./DayForm";
+import { ImportView } from "./ImportView";
 import { NoSignal } from "./NoSignal";
 
 type SubTab = "calendar" | "analytics" | "import";
 type Screen = "calendar" | "day-card" | "no-signal" | "day-form";
 
-function MindDataView({ lang, initialTab }: ModuleProps & { initialTab: SubTab }) {
+function MindDataView({ lang, report, initialTab }: ModuleProps & { initialTab: SubTab }) {
   const T = TABLET_I18N[lang].mindData;
 
   const [subTab, setSubTab] = useState<SubTab>(initialTab);
@@ -161,12 +162,7 @@ function MindDataView({ lang, initialTab }: ModuleProps & { initialTab: SubTab }
       ) : subTab === "analytics" ? (
         <AnalyticsView lang={lang} />
       ) : (
-        <div className="md-stub">
-          <div className="md-stub-icon">⇥</div>
-          <div className="md-stub-title">{T.tabs.importReport}</div>
-          <div className="md-stub-sub">{T.stubImport}</div>
-          <div className="md-stub-badge">{T.nextStep}</div>
-        </div>
+        <ImportView lang={lang} report={report} log={log} onLogUpdated={setLog} />
       )}
     </div>
   );

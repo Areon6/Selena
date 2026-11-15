@@ -136,6 +136,28 @@ export interface TabletTexts {
       basisIllustrative: string;
       disclaimer: string;
     };
+    importView: {
+      importTitle: string;
+      importBadge: string;
+      unitsHint: string;
+      btnLoadSample: string;
+      btnPickFile: string;
+      placeholder: string;
+      btnImport: string;
+      btnImporting: string;
+      btnClear: string;
+      summary: (fmt: string, imp: number, upd: number, skip: number) => string;
+      reportTitle: string;
+      reportDelayBadge: (min: number) => string;
+      formatMd: string;
+      formatJson: string;
+      btnCopy: string;
+      btnCopied: string;
+      btnExportMd: string;
+      btnExportJson: string;
+      savedTo: (path: string) => string;
+      reportDisclaimer: string;
+    };
     stubImport: string;
     nextStep: string;
     loading: string;
@@ -171,7 +193,7 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
         modules: {
           calendar: { title: "Mission calendar", desc: "Browse Days 1–78, inspect daily status or log retroactive entries" },
           analytics: { title: "Mind & correlations", desc: "Mood volatility, thought themes and mind-body associations" },
-          importReport: { title: "Import & report", desc: "CSV/JSON device ingestion and mission brief (next step)" },
+          importReport: { title: "Import & report", desc: "CSV/JSON device ingestion and Houston micro-report" },
         },
       },
     },
@@ -390,6 +412,28 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
         basisIllustrative: "illustrative",
         disclaimer: "Days 1–77 include simulated sample history. Cohort deltas are illustrative associations (n ≥ 3), not causal claims.",
       },
+      importView: {
+        importTitle: "Device Telemetry Import",
+        importBadge: "CSV / JSON",
+        unitsHint: "Strict units: ppCO₂ in mmHg (never %), dose rate in µSv/h",
+        btnLoadSample: "Load sample device export",
+        btnPickFile: "Open .csv / .json",
+        placeholder: "day,hr,bp_sys,bp_dia,spo2,ppco2,sleep_h,dose_usv\n73,67,120,76,97.5,2.4,7.4,40",
+        btnImport: "Merge into mission log",
+        btnImporting: "Importing…",
+        btnClear: "Clear",
+        summary: (fmt, imp, upd, skip) => `${fmt.toUpperCase()} merged: +${imp} new, ${upd} updated, ${skip} skipped`,
+        reportTitle: "Houston Mission Micro-Report",
+        reportDelayBadge: (min) => `${min} min one-way queue`,
+        formatMd: "Markdown (.md)",
+        formatJson: "JSON (.json)",
+        btnCopy: "Copy",
+        btnCopied: "Copied",
+        btnExportMd: "Export .md",
+        btnExportJson: "Export .json",
+        savedTo: (path) => `Saved offline to: ${path}`,
+        reportDisclaimer: "100% offline packet queued for delayed Earth link. Includes simulated Days 1–77 notice and illustrative basis tags.",
+      },
       stubImport: "CSV/JSON device data import and Houston micro-report export will run here in Stage 4.",
       nextStep: "Coming in next stage",
       loading: "Loading mission archive…",
@@ -423,7 +467,7 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
         modules: {
           calendar: { title: "Календарь миссии", desc: "Дни 1–78: статистика дат, экран NO SIGNAL и ввод задним числом" },
           analytics: { title: "Психика и корреляции", desc: "Волатильность, темы мыслей и ассоциации Mind↔Body" },
-          importReport: { title: "Импорт и микроотчёт", desc: "Загрузка CSV/JSON с приборов и сводка для Хьюстона (Этап 4)" },
+          importReport: { title: "Импорт и микроотчёт", desc: "Загрузка CSV/JSON с приборов и сводка для Хьюстона" },
         },
       },
     },
@@ -641,6 +685,28 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
         },
         basisIllustrative: "illustrative",
         disclaimer: "Дни 1–77: simulated sample history. Разницы между когортами (n ≥ 3) — иллюстративные ассоциации, не диагноз и не причинность.",
+      },
+      importView: {
+        importTitle: "Импорт данных приборов",
+        importBadge: "CSV / JSON",
+        unitsHint: "Строгие единицы: ppCO₂ в mmHg (не %), доза в µSv/h",
+        btnLoadSample: "Загрузить демо-экспорт",
+        btnPickFile: "Открыть .csv / .json",
+        placeholder: "day,hr,bp_sys,bp_dia,spo2,ppco2,sleep_h,dose_usv\n73,67,120,76,97.5,2.4,7.4,40",
+        btnImport: "Слить в журнал миссии",
+        btnImporting: "Импорт…",
+        btnClear: "Очистить",
+        summary: (fmt, imp, upd, skip) => `${fmt.toUpperCase()}: +${imp} новых, ${upd} обновлено, ${skip} пропущено`,
+        reportTitle: "Микроотчёт для Хьюстона",
+        reportDelayBadge: (min) => `очередь ${min} мин в одну сторону`,
+        formatMd: "Markdown (.md)",
+        formatJson: "JSON (.json)",
+        btnCopy: "Копировать",
+        btnCopied: "Скопировано",
+        btnExportMd: "Экспорт .md",
+        btnExportJson: "Экспорт .json",
+        savedTo: (path) => `Сохранено офлайн: ${path}`,
+        reportDisclaimer: "100% офлайн-сводка для канала связи с Землёй. Содержит пометки Simulated sample history и illustrative.",
       },
       stubImport: "Импорт CSV/JSON с приборов и экспорт микроотчёта для Хьюстона будут добавлены на Этапе 4.",
       nextStep: "Следующий этап",
