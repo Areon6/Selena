@@ -723,8 +723,6 @@ pub fn run() {
             mission_log::reset_mission_log,
             analytics::get_mind_analytics,
             importer::import_device_log,
-            importer::export_houston_report,
-            importer::import_device_log,
             importer::export_houston_report
         ])
         .run(tauri::generate_context!())

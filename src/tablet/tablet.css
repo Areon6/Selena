@@ -154,6 +154,7 @@
   border-bottom: 1px solid var(--line);
 }
 .md-seg-btn {
+  -webkit-appearance: none; appearance: none;
   padding: 7px 6px 8px;
   background: transparent;
   border: none;
@@ -167,6 +168,7 @@
 .md-seg-btn:hover:not(.active) { color: var(--text); }
 
 .md-btn {
+  -webkit-appearance: none; appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -461,6 +463,7 @@
 .df-tag.active { background: var(--teal-s); border-color: var(--teal); color: var(--teal); }
 
 .df-textarea {
+  box-sizing: border-box;
   width: 100%;
   background: #070c11;
   border: 1px solid var(--line2);
@@ -675,17 +678,18 @@
   font-size: 11px;
   line-height: 1.45;
   color: var(--faint);
+}
 
-  /* ─── Import & Houston Micro-Report (Stage 4) ──────────────────────────────── */
+/* ─── Import & Houston Micro-Report (Stage 4) ──────────────────────────────── */
 
-.imp-root { display: flex; flex-direction: column; gap: 10px; }
+.imp-root { display: flex; flex-direction: column; gap: 12px; }
 
 .imp-card {
   display: grid;
-  gap: 8px;
-  padding: 10px;
+  gap: 9px;
+  padding: 11px 12px;
   border: 1px solid var(--line);
-  background: rgba(15, 25, 34, 0.78);
+  background: rgba(15, 25, 34, 0.55);
 }
 
 .imp-head {
@@ -693,23 +697,25 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .imp-title {
-  font: 500 10px/1.2 var(--mono);
-  letter-spacing: 0.12em;
+  font: 500 11px/1.2 var(--sans);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--dim);
 }
 
 .imp-badge {
-  padding: 2px 6px;
+  padding: 2px 7px;
   border: 1px solid rgba(67, 192, 174, 0.35);
   background: #070c11;
-  font: 600 9px/1.2 var(--mono);
-  letter-spacing: 0.06em;
+  font: 500 10px/1.2 var(--mono);
+  letter-spacing: 0.04em;
   color: var(--teal);
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .imp-badge-amber {
@@ -718,7 +724,7 @@
 }
 
 .imp-hint {
-  font: 500 10px/1.35 var(--mono);
+  font: 400 11.5px/1.4 var(--sans);
   color: var(--dim);
 }
 
@@ -729,8 +735,8 @@
 }
 
 .imp-btn-sm {
-  padding: 6px 9px;
-  font-size: 10px;
+  padding: 6px 10px;
+  font-size: 11.5px;
 }
 
 .imp-file-label {
@@ -743,13 +749,14 @@
 }
 
 .imp-textarea {
+  box-sizing: border-box;
   width: 100%;
   min-height: 112px;
-  padding: 8px 9px;
+  padding: 8px 10px;
   background: #070c11;
   border: 1px solid var(--line2);
   color: var(--text);
-  font: 400 11px/1.45 var(--mono);
+  font: 400 11.5px/1.45 var(--mono);
   resize: vertical;
 }
 
@@ -765,59 +772,60 @@
 .imp-result {
   display: grid;
   gap: 5px;
-  padding: 7px 9px;
+  padding: 8px 10px;
   border: 1px solid rgba(67, 192, 174, 0.45);
-  background: rgba(13, 37, 32, 0.72);
+  background: rgba(13, 37, 32, 0.65);
 }
 
 .imp-result-ok {
-  font: 600 10px/1.35 var(--mono);
+  font: 500 11.5px/1.35 var(--sans);
   color: var(--teal);
 }
 
 .imp-warn-list {
   margin: 0;
-  padding-left: 14px;
+  padding-left: 16px;
   display: grid;
-  gap: 2px;
-  font: 400 10px/1.35 var(--mono);
+  gap: 3px;
+  font: 400 11px/1.35 var(--mono);
   color: var(--amber);
 }
 
 .imp-seg {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2px;
-  padding: 2px;
-  background: #070c11;
-  border: 1px solid var(--line);
 }
 
 .imp-seg-btn {
-  padding: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 7px 6px;
   background: transparent;
-  border: none;
-  font: 500 10px/1 var(--mono);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  border: 1px solid var(--line2);
+  margin-left: -1px;
+  font: 500 11px/1.1 var(--sans);
   color: var(--dim);
   cursor: pointer;
 }
-
+.imp-seg-btn:first-child { margin-left: 0; }
 .imp-seg-btn.active {
   background: var(--teal-s);
+  border-color: var(--teal);
   color: var(--teal);
+  position: relative;
+  z-index: 1;
 }
+.imp-seg-btn:hover:not(.active) { color: var(--text); }
 
 .imp-preview {
   margin: 0;
-  max-height: 210px;
+  max-height: 220px;
   overflow: auto;
-  padding: 8px 9px;
+  padding: 9px 10px;
   background: #070c11;
   border: 1px solid var(--line);
   color: var(--text);
-  font: 400 10px/1.45 var(--mono);
+  font: 400 11px/1.45 var(--mono);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -829,18 +837,17 @@
 }
 
 .imp-saved {
-  padding: 6px 8px;
+  padding: 7px 9px;
   border: 1px solid rgba(67, 192, 174, 0.35);
   background: #070c11;
-  font: 500 10px/1.35 var(--mono);
+  font: 400 11px/1.35 var(--mono);
   color: var(--teal);
   word-break: break-all;
 }
 
 .imp-disclaimer {
   margin: 0;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.4;
   color: var(--faint);
-}
 }

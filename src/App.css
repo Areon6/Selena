@@ -1,4 +1,13 @@
-/* Selena — flight-deck UI. No external fonts or assets: the ship has no internet. */
+/* Selena — flight-deck UI. 100% offline bundled fonts and assets. */
+
+@import "@fontsource/ibm-plex-sans/300.css";
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+@import "@fontsource/ibm-plex-mono/700.css";
 
 :root {
   --bg: #070c11;
@@ -18,8 +27,8 @@
   --clay: #c68b5c;
   --steel: #7fa4c4;
 
-  --sans: "Inter", "SF Pro Text", system-ui, "Segoe UI", "Helvetica Neue", sans-serif;
-  --mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
 [data-level="nominal"] {
@@ -200,6 +209,7 @@ button {
 
 .top-meta {
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 
@@ -217,6 +227,53 @@ button {
 .chip[data-level] {
   border-color: var(--c);
   color: var(--c);
+}
+
+.chip-btn {
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.chip-btn:hover {
+  border-color: var(--line2);
+  color: var(--text);
+}
+.chip-btn[data-active="true"] {
+  border-color: var(--teal);
+  background: var(--teal-s);
+  color: var(--teal);
+}
+
+.chip-lang {
+  gap: 4px;
+  padding: 4px 8px;
+}
+.lang-opt {
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 2px 5px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--dim);
+  font: 500 10.5px/1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.lang-opt:hover {
+  color: var(--text);
+}
+.lang-opt[data-active="true"] {
+  color: var(--teal);
+  border-color: rgba(67, 192, 174, 0.45);
+  background: var(--teal-s);
+}
+.lang-sep {
+  color: var(--faint);
+  font: 400 10px/1 var(--mono);
+  user-select: none;
 }
 
 /* ───────── layout ───────── */
@@ -349,6 +406,8 @@ button {
 }
 
 .btn {
+  -webkit-appearance: none;
+  appearance: none;
   padding: 8px 10px;
   background: transparent;
   border: 1px solid var(--line2);
@@ -622,6 +681,8 @@ dd {
   padding: 0;
 }
 .task {
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   display: grid;
   grid-template-columns: 18px 1fr auto;
