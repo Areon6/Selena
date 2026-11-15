@@ -95,6 +95,15 @@ export interface TabletTexts {
     spo2: string;
     ppco2: string;
     doseRate: string;
+    score: {
+      title: string;
+      subtitle: string;
+      metrics: (n: number) => string;
+      allClear: string;
+      factors: Record<string, string>;
+      basis: Record<"nasa" | "mixed" | "illustrative", string>;
+      disclaimer: string;
+    };
     tags: Record<string, string>;
     sentiments: Record<Sentiment, string>;
     themes: Record<string, string>;
@@ -274,6 +283,38 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
       spo2: "SpO₂",
       ppco2: "ppCO₂",
       doseRate: "Dose rate",
+      score: {
+        title: "Score breakdown",
+        subtitle: "Illustrative composite vs day targets",
+        metrics: (n) => `${n}/10 metrics`,
+        allClear: "All logged metrics within target bands",
+        factors: {
+          ppco2_crit: "ppCO₂ critical",
+          ppco2_watch: "ppCO₂ elevated",
+          spo2_crit: "SpO₂ critically low",
+          spo2_watch: "SpO₂ low",
+          hr_crit: "Heart rate critical",
+          hr_watch: "Heart rate out of range",
+          bp_sys_crit: "Systolic pressure critical",
+          bp_sys_watch: "Systolic pressure high",
+          bp_dia_crit: "Diastolic pressure critical",
+          bp_dia_watch: "Diastolic pressure high",
+          sleep_crit: "Sleep critically short",
+          sleep_watch: "Short sleep",
+          dose_crit: "Radiation dose rate critical",
+          dose_watch: "Radiation dose rate elevated",
+          stress_high: "Stress very high",
+          stress_elevated: "Stress elevated",
+          mood_low: "Mood very low",
+          mood_sub: "Mood below baseline",
+          energy_low: "Energy very low",
+          incomplete_data: "Too few metrics logged (score capped)",
+          level_cap_watch: "Watch day: score capped below rank A",
+          level_cap_critical: "Critical day: score capped below rank B",
+        },
+        basis: { nasa: "NASA", mixed: "mixed", illustrative: "illustrative" },
+        disclaimer: "Score and rank are illustrative, relative to on-board day target bands. Only ppCO₂ limits (NASA-STD-3001 / OCHMO-TB-004) and the 7.0 h sleep threshold (NASA Ames) follow published guidance.",
+      },
       tags: {
         fatigue: "Fatigue",
         weakness: "Weakness",
@@ -494,6 +535,38 @@ export const TABLET_I18N: Record<Lang, TabletTexts> = {
       spo2: "SpO₂",
       ppco2: "ppCO₂",
       doseRate: "Доза",
+      score: {
+        title: "Расчёт оценки дня",
+        subtitle: "Условная составная оценка относительно целей дня",
+        metrics: (n) => `${n}/10 показателей`,
+        allClear: "Все внесённые показатели в целевых диапазонах",
+        factors: {
+          ppco2_crit: "ppCO₂ критический",
+          ppco2_watch: "ppCO₂ повышен",
+          spo2_crit: "SpO₂ критически низкий",
+          spo2_watch: "SpO₂ понижен",
+          hr_crit: "Пульс критический",
+          hr_watch: "Пульс вне диапазона",
+          bp_sys_crit: "Систолическое давление критическое",
+          bp_sys_watch: "Систолическое давление повышено",
+          bp_dia_crit: "Диастолическое давление критическое",
+          bp_dia_watch: "Диастолическое давление повышено",
+          sleep_crit: "Сон критически короткий",
+          sleep_watch: "Короткий сон",
+          dose_crit: "Мощность дозы критическая",
+          dose_watch: "Мощность дозы повышена",
+          stress_high: "Стресс очень высокий",
+          stress_elevated: "Стресс повышен",
+          mood_low: "Настроение очень низкое",
+          mood_sub: "Настроение ниже базового",
+          energy_low: "Энергия очень низкая",
+          incomplete_data: "Внесено мало показателей (оценка ограничена)",
+          level_cap_watch: "День «Внимание»: оценка ограничена ниже ранга A",
+          level_cap_critical: "Критический день: оценка ограничена ниже ранга B",
+        },
+        basis: { nasa: "NASA", mixed: "смешанная", illustrative: "условная" },
+        disclaimer: "Оценка и ранг условные, относительно бортовых целевых коридоров дня. Опубликованным ориентирам соответствуют только пороги ppCO₂ (NASA-STD-3001 / OCHMO-TB-004) и порог сна 7.0 h (NASA Ames).",
+      },
       tags: {
         fatigue: "Усталость",
         weakness: "Слабость",

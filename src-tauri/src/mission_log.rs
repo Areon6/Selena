@@ -12,6 +12,20 @@ use tauri::{AppHandle, Manager};
 const FILE_NAME: &str = "mission_log.json";
 const CURRENT_MISSION_DAY: u32 = 78;
 
+/// Number of scored metrics: hr, bp_sys, bp_dia, spo2, ppco2, sleep_hours, dose_usv_h, mood, energy, stress.
+const SCORED_METRICS: u8 = 10;
+/// Below this many filled metrics the day cannot earn a top rank.
+const MIN_METRICS: u8 = 4;
+/// Score ceiling for sparse days (rank never above B).
+const INCOMPLETE_CAP: i32 = 84;
+/// Score ceiling when the day level is Watch (rank never above B).
+const WATCH_CAP: i32 = 84;
+/// Score ceiling when the day level is Critical (rank never above C).
+const CRITICAL_CAP: i32 = 69;
+/// Raw score below which the day is Critical / Watch regardless of single thresholds.
+const SCORE_CRITICAL_BELOW: i32 = 50;
+const SCORE_WATCH_BELOW: i32 = 70;
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum DaySource {
@@ -35,6 +49,19 @@ pub enum DayRank {
     B,
     C,
     D,
+}
+
+/// One line of the score breakdown. `key` is a stable ID the frontend localizes;
+/// `basis` is "nasa" | "mixed" | "illustrative".
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ScoreFactor {
+    pub key: String,
+    pub actual: String,
+    pub target: String,
+    pub delta: i32,
+    pub severity: DayLevel,
+    pub basis: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -61,9 +88,16 @@ pub struct DayEntry {
     pub themes: Option<Vec<String>>,
     pub sentiment: Option<Sentiment>,
 
-    // Computed illustrative composite score
+    // Computed illustrative composite score (all recomputed in enrich())
     pub level: Option<DayLevel>,
     pub rank: Option<DayRank>,
+    #[serde(default)]
+    pub score: Option<u8>,
+    /// How many of the 10 scored fields are actually filled.
+    #[serde(default)]
+    pub metrics_count: Option<u8>,
+    #[serde(default)]
+    pub score_factors: Option<Vec<ScoreFactor>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,126 +144,219 @@ fn sanitize_entry(mut e: DayEntry) -> Result<DayEntry, String> {
     Ok(enrich(e))
 }
 
-/// Illustrative composite rating aligned with SELENA telemetry thresholds (mmHg for ppCO2).
-pub fn compute_level_rank(e: &DayEntry) -> (DayLevel, DayRank) {
-    let mut score: i32 = 100;
-    let mut floor_level = DayLevel::Nominal;
+/// How many of the 10 scored fields are filled.
+fn count_metrics(e: &DayEntry) -> u8 {
+    [
+        e.hr.is_some(),
+        e.bp_sys.is_some(),
+        e.bp_dia.is_some(),
+        e.spo2.is_some(),
+        e.ppco2.is_some(),
+        e.sleep_hours.is_some(),
+        e.dose_usv_h.is_some(),
+        e.mood.is_some(),
+        e.energy.is_some(),
+        e.stress.is_some(),
+    ]
+    .iter()
+    .filter(|filled| **filled)
+    .count() as u8
+}
 
-    if let Some(ppco2) = e.ppco2 {
-        if ppco2 >= 4.5 {
-            score -= 32;
-            floor_level = floor_level.max(DayLevel::Critical);
-        } else if ppco2 >= 3.0 {
-            score -= 15;
-            floor_level = floor_level.max(DayLevel::Watch);
+fn factor(
+    key: &str,
+    actual: String,
+    target: &str,
+    delta: i32,
+    severity: DayLevel,
+    basis: &str,
+) -> ScoreFactor {
+    ScoreFactor {
+        key: key.to_string(),
+        actual,
+        target: target.to_string(),
+        delta,
+        severity,
+        basis: basis.to_string(),
+    }
+}
+
+/// Illustrative composite rating relative to on-board day target bands (mmHg for ppCO2).
+///
+/// Returns `(level, rank, score, metrics_count, factors)`.
+///
+/// Invariants (enforced here, covered by tests):
+/// * `score == 100 + sum(delta)` (before clamping to 0..=100), every cap is itself a factor;
+/// * Nominal -> A (>= 85) or B; Watch -> B (70..=84) or C (< 70); Critical -> C (50..=69) or D (< 50);
+/// * fewer than 4 filled metrics -> score <= 84, rank never A.
+///
+/// Basis: ppCO2 thresholds are "nasa", sleep is "mixed" (Ames guidance + illustrative critical cut),
+/// everything else (and the composite itself) is "illustrative".
+pub fn compute_level_rank(e: &DayEntry) -> (DayLevel, DayRank, u8, u8, Vec<ScoreFactor>) {
+    use DayLevel::{Critical, Nominal, Watch};
+
+    let metrics = count_metrics(e);
+    let mut f: Vec<ScoreFactor> = Vec::new();
+
+    if let Some(p) = e.ppco2 {
+        let actual = format!("{p:.1} mmHg");
+        if p >= 4.5 {
+            f.push(factor("ppco2_crit", actual, "< 3.0 mmHg", -32, Critical, "nasa"));
+        } else if p >= 3.0 {
+            f.push(factor("ppco2_watch", actual, "< 3.0 mmHg", -15, Watch, "nasa"));
         }
     }
-    if let Some(spo2) = e.spo2 {
-        if spo2 <= 90.0 {
-            score -= 32;
-            floor_level = floor_level.max(DayLevel::Critical);
-        } else if spo2 <= 95.0 {
-            score -= 14;
-            floor_level = floor_level.max(DayLevel::Watch);
+    if let Some(s) = e.spo2 {
+        let actual = format!("{s:.1} %");
+        if s <= 90.0 {
+            f.push(factor("spo2_crit", actual, "> 95 %", -32, Critical, "illustrative"));
+        } else if s <= 95.0 {
+            f.push(factor("spo2_watch", actual, "> 95 %", -14, Watch, "illustrative"));
         }
     }
     if let Some(hr) = e.hr {
+        let actual = format!("{hr:.0} bpm");
         if hr >= 130.0 || hr < 45.0 {
-            score -= 24;
-            floor_level = floor_level.max(DayLevel::Critical);
+            f.push(factor("hr_crit", actual, "50–99 bpm", -24, Critical, "illustrative"));
         } else if hr >= 100.0 || hr < 50.0 {
-            score -= 10;
-            floor_level = floor_level.max(DayLevel::Watch);
+            f.push(factor("hr_watch", actual, "50–99 bpm", -10, Watch, "illustrative"));
         }
     }
     if let Some(sys) = e.bp_sys {
+        let actual = format!("{sys:.0} mmHg");
         if sys >= 180.0 {
-            score -= 25;
-            floor_level = floor_level.max(DayLevel::Critical);
+            f.push(factor("bp_sys_crit", actual, "< 140 mmHg", -25, Critical, "illustrative"));
         } else if sys >= 140.0 {
-            score -= 12;
-            floor_level = floor_level.max(DayLevel::Watch);
+            f.push(factor("bp_sys_watch", actual, "< 140 mmHg", -12, Watch, "illustrative"));
         }
     }
     if let Some(dia) = e.bp_dia {
+        let actual = format!("{dia:.0} mmHg");
         if dia >= 120.0 {
-            score -= 20;
-            floor_level = floor_level.max(DayLevel::Critical);
+            f.push(factor("bp_dia_crit", actual, "< 90 mmHg", -20, Critical, "illustrative"));
         } else if dia >= 90.0 {
-            score -= 10;
-            floor_level = floor_level.max(DayLevel::Watch);
+            f.push(factor("bp_dia_watch", actual, "< 90 mmHg", -10, Watch, "illustrative"));
         }
     }
     if let Some(sleep) = e.sleep_hours {
+        let actual = format!("{sleep:.1} h");
         if sleep <= 5.0 {
-            score -= 22;
-            floor_level = floor_level.max(DayLevel::Critical);
+            f.push(factor("sleep_crit", actual, ">= 7.0 h", -22, Critical, "mixed"));
         } else if sleep < 7.0 {
-            score -= 10;
-            floor_level = floor_level.max(DayLevel::Watch);
+            f.push(factor("sleep_watch", actual, ">= 7.0 h", -10, Watch, "mixed"));
         }
     }
     if let Some(dose) = e.dose_usv_h {
+        let actual = format!("{dose:.0} µSv/h");
         if dose >= 1000.0 {
-            score -= 35;
-            floor_level = floor_level.max(DayLevel::Critical);
+            f.push(factor("dose_crit", actual, "< 200 µSv/h", -35, Critical, "illustrative"));
         } else if dose >= 200.0 {
-            score -= 16;
-            floor_level = floor_level.max(DayLevel::Watch);
+            f.push(factor("dose_watch", actual, "< 200 µSv/h", -16, Watch, "illustrative"));
         }
     }
     if let Some(stress) = e.stress {
+        let actual = format!("{stress}/5");
         if stress >= 5 {
-            score -= 14;
-            floor_level = floor_level.max(DayLevel::Watch);
+            f.push(factor("stress_high", actual, "<= 3/5", -14, Watch, "illustrative"));
         } else if stress >= 4 {
-            score -= 7;
+            f.push(factor("stress_elevated", actual, "<= 3/5", -7, Nominal, "illustrative"));
         }
     }
     if let Some(mood) = e.mood {
+        let actual = format!("{mood}/5");
         if mood <= 1 {
-            score -= 14;
-            floor_level = floor_level.max(DayLevel::Watch);
+            f.push(factor("mood_low", actual, ">= 3/5", -14, Watch, "illustrative"));
         } else if mood <= 2 {
-            score -= 7;
+            f.push(factor("mood_sub", actual, ">= 3/5", -7, Nominal, "illustrative"));
         }
     }
     if let Some(energy) = e.energy {
         if energy <= 1 {
-            score -= 8;
+            f.push(factor("energy_low", format!("{energy}/5"), ">= 2/5", -8, Nominal, "illustrative"));
         }
     }
 
-    let score_level = if score < 55 {
-        DayLevel::Critical
-    } else if score < 78 {
-        DayLevel::Watch
+    // Level: worst single-metric severity, or the accumulated raw score if that is worse.
+    let floor_level = f.iter().map(|x| x.severity).max().unwrap_or(Nominal);
+    let raw: i32 = 100 + f.iter().map(|x| x.delta).sum::<i32>();
+    let score_level = if raw < SCORE_CRITICAL_BELOW {
+        Critical
+    } else if raw < SCORE_WATCH_BELOW {
+        Watch
     } else {
-        DayLevel::Nominal
+        Nominal
     };
     let level = floor_level.max(score_level);
 
-    let mut rank = if score >= 90 {
-        DayRank::A
-    } else if score >= 75 {
-        DayRank::B
-    } else if score >= 55 {
-        DayRank::C
-    } else {
-        DayRank::D
-    };
+    let mut score = raw;
 
-    if level == DayLevel::Critical && matches!(rank, DayRank::A | DayRank::B) {
-        rank = DayRank::C;
+    // Sparse day: never a top rank on the strength of one or two readings.
+    if metrics < MIN_METRICS {
+        let cut = (score - INCOMPLETE_CAP).max(0);
+        score -= cut;
+        f.push(factor(
+            "incomplete_data",
+            format!("{metrics}/{SCORED_METRICS}"),
+            &format!(">= {MIN_METRICS}/{SCORED_METRICS}"),
+            -cut,
+            Nominal,
+            "illustrative",
+        ));
     }
 
-    (level, rank)
+    // Level <-> rank consistency: a Watch day cannot score into A, a Critical day not into A or B.
+    let (cap, cap_key) = match level {
+        Nominal => (100, ""),
+        Watch => (WATCH_CAP, "level_cap_watch"),
+        Critical => (CRITICAL_CAP, "level_cap_critical"),
+    };
+    if score > cap {
+        f.push(factor(
+            cap_key,
+            format!("{score}/100"),
+            &format!("<= {cap}/100"),
+            -(score - cap),
+            level,
+            "illustrative",
+        ));
+        score = cap;
+    }
+
+    let score = score.clamp(0, 100);
+    let rank = match level {
+        Nominal => {
+            if score >= 85 {
+                DayRank::A
+            } else {
+                DayRank::B
+            }
+        }
+        Watch => {
+            if score >= 70 {
+                DayRank::B
+            } else {
+                DayRank::C
+            }
+        }
+        Critical => {
+            if score >= 50 {
+                DayRank::C
+            } else {
+                DayRank::D
+            }
+        }
+    };
+
+    (level, rank, score as u8, metrics, f)
 }
 
 fn enrich(mut e: DayEntry) -> DayEntry {
-    let (level, rank) = compute_level_rank(&e);
+    let (level, rank, score, metrics, factors) = compute_level_rank(&e);
     e.level = Some(level);
     e.rank = Some(rank);
+    e.score = Some(score);
+    e.metrics_count = Some(metrics);
+    e.score_factors = Some(factors);
 
     let has_text = e.note.as_ref().is_some_and(|n| !n.trim().is_empty());
     let has_tags = e.tags.as_ref().is_some_and(|t| !t.is_empty());
@@ -327,10 +454,7 @@ pub fn generate_sample_history() -> Vec<DayEntry> {
                 stress: Some(s.9),
                 tags: Some(s.10.iter().map(|t| (*t).to_string()).collect()),
                 note: Some(s.11.to_string()),
-                themes: None,
-                sentiment: None,
-                level: None,
-                rank: None,
+                ..Default::default()
             })
         })
         .collect();
@@ -459,4 +583,197 @@ pub fn reset_mission_log(app: AppHandle) -> Result<MissionLog, String> {
     let fresh = make_fresh_log();
     save_log(&app, &fresh)?;
     Ok(fresh)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// All 10 metrics filled and inside target bands.
+    fn nominal() -> DayEntry {
+        DayEntry {
+            day: 10,
+            hr: Some(65.0),
+            bp_sys: Some(118.0),
+            bp_dia: Some(76.0),
+            spo2: Some(97.6),
+            ppco2: Some(2.3),
+            sleep_hours: Some(7.6),
+            dose_usv_h: Some(39.0),
+            mood: Some(4),
+            energy: Some(4),
+            stress: Some(2),
+            ..Default::default()
+        }
+    }
+
+    fn assert_consistent(e: &DayEntry) {
+        let level = e.level.unwrap();
+        let rank = e.rank.unwrap();
+        let score = e.score.unwrap();
+        match level {
+            DayLevel::Nominal => assert!(matches!(rank, DayRank::A | DayRank::B), "{e:?}"),
+            DayLevel::Watch => {
+                assert!(matches!(rank, DayRank::B | DayRank::C), "{e:?}");
+                assert!(score <= 84, "{e:?}");
+            }
+            DayLevel::Critical => {
+                assert!(matches!(rank, DayRank::C | DayRank::D), "{e:?}");
+                assert!(score <= 69, "{e:?}");
+            }
+        }
+        if e.metrics_count.unwrap() < MIN_METRICS {
+            assert!(score <= 84, "{e:?}");
+            assert_ne!(rank, DayRank::A);
+        }
+        let sum: i32 = e.score_factors.as_ref().unwrap().iter().map(|f| f.delta).sum();
+        if 100 + sum >= 0 {
+            assert_eq!(score as i32, 100 + sum, "factors must add up to the score: {e:?}");
+        }
+    }
+
+    fn has_factor<'a>(e: &'a DayEntry, key: &str) -> Option<&'a ScoreFactor> {
+        e.score_factors.as_ref().unwrap().iter().find(|f| f.key == key)
+    }
+
+    #[test]
+    fn fully_nominal_day_is_a() {
+        let e = enrich(nominal());
+        assert_eq!(e.level, Some(DayLevel::Nominal));
+        assert_eq!(e.rank, Some(DayRank::A));
+        assert_eq!(e.score, Some(100));
+        assert_eq!(e.metrics_count, Some(10));
+        assert!(e.score_factors.as_ref().unwrap().is_empty());
+    }
+
+    #[test]
+    fn watch_violation_never_gives_rank_a() {
+        let mut e = nominal();
+        e.sleep_hours = Some(6.2);
+        let e = enrich(e);
+        assert_eq!(e.level, Some(DayLevel::Watch));
+        assert_ne!(e.rank, Some(DayRank::A));
+        assert_eq!(e.rank, Some(DayRank::B));
+        assert!(e.score.unwrap() <= 84);
+        assert!(has_factor(&e, "sleep_watch").is_some());
+        // Raw 90 is lifted above the Watch ceiling, so the cap itself is an explicit factor.
+        assert_eq!(has_factor(&e, "level_cap_watch").unwrap().delta, -6);
+        assert_consistent(&e);
+    }
+
+    #[test]
+    fn critical_violation_never_gives_a_or_b() {
+        let mut co2 = nominal();
+        co2.ppco2 = Some(5.1);
+        let mut dose = nominal();
+        dose.dose_usv_h = Some(1650.0);
+
+        for e in [enrich(co2), enrich(dose)] {
+            assert_eq!(e.level, Some(DayLevel::Critical));
+            assert!(!matches!(e.rank, Some(DayRank::A | DayRank::B)), "{e:?}");
+            assert!(e.score.unwrap() <= 69);
+            assert_consistent(&e);
+        }
+    }
+
+    #[test]
+    fn nearly_empty_day_is_not_a() {
+        let e = enrich(DayEntry { day: 3, hr: Some(65.0), ..Default::default() });
+        assert_eq!(e.metrics_count, Some(1));
+        assert_ne!(e.rank, Some(DayRank::A));
+        assert!(e.score.unwrap() <= 84);
+        let f = has_factor(&e, "incomplete_data").expect("incomplete_data factor");
+        assert_eq!(f.actual, "1/10");
+        assert_eq!(f.target, ">= 4/10");
+        assert_eq!(f.delta, -16);
+        assert_consistent(&e);
+
+        // Three clean readings are still too few; four are enough.
+        let three = enrich(DayEntry {
+            day: 3,
+            hr: Some(65.0),
+            spo2: Some(97.0),
+            ppco2: Some(2.3),
+            ..Default::default()
+        });
+        assert_ne!(three.rank, Some(DayRank::A));
+        let four = enrich(DayEntry {
+            day: 3,
+            hr: Some(65.0),
+            spo2: Some(97.0),
+            ppco2: Some(2.3),
+            mood: Some(4),
+            ..Default::default()
+        });
+        assert_eq!(four.rank, Some(DayRank::A));
+        assert!(has_factor(&four, "incomplete_data").is_none());
+    }
+
+    #[test]
+    fn every_penalty_is_a_factor_with_honest_basis() {
+        let mut e = nominal();
+        e.ppco2 = Some(3.6);
+        e.sleep_hours = Some(6.2);
+        e.hr = Some(105.0);
+        let e = enrich(e);
+
+        let co2 = has_factor(&e, "ppco2_watch").expect("ppco2 factor");
+        assert_eq!(co2.basis, "nasa");
+        assert_eq!(co2.actual, "3.6 mmHg");
+        assert_eq!(co2.target, "< 3.0 mmHg");
+        assert_eq!(co2.delta, -15);
+        assert_eq!(co2.severity, DayLevel::Watch);
+
+        assert_eq!(has_factor(&e, "sleep_watch").unwrap().basis, "mixed");
+        assert_eq!(has_factor(&e, "hr_watch").unwrap().basis, "illustrative");
+
+        // Penalties + the level cap explain the whole score.
+        assert_consistent(&e);
+
+        let mut crit = nominal();
+        crit.ppco2 = Some(5.1);
+        let crit = enrich(crit);
+        assert_eq!(has_factor(&crit, "ppco2_crit").unwrap().basis, "nasa");
+    }
+
+    #[test]
+    fn level_rank_invariant_holds_on_a_grid() {
+        for ppco2 in [2.3, 3.1, 5.1] {
+            for sleep in [7.6, 6.2, 4.5] {
+                for dose in [40.0, 250.0, 1650.0] {
+                    for stress in [2u8, 4, 5] {
+                        for mood in [4u8, 2, 1] {
+                            let mut e = nominal();
+                            e.ppco2 = Some(ppco2);
+                            e.sleep_hours = Some(sleep);
+                            e.dose_usv_h = Some(dose);
+                            e.stress = Some(stress);
+                            e.mood = Some(mood);
+                            assert_consistent(&enrich(e));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn sample_history_is_consistent() {
+        let entries = generate_sample_history();
+        assert_eq!(entries.len(), 35);
+        for e in &entries {
+            assert_eq!(e.metrics_count, Some(10));
+            assert_consistent(e);
+        }
+    }
+
+    #[test]
+    fn old_log_without_new_fields_still_deserializes() {
+        let json = r#"{"day":5,"hr":65.0,"level":"nominal","rank":"A"}"#;
+        let e: DayEntry = serde_json::from_str(json).unwrap();
+        assert!(e.score.is_none() && e.metrics_count.is_none() && e.score_factors.is_none());
+        let e = enrich(e);
+        assert_eq!(e.metrics_count, Some(1));
+        assert_ne!(e.rank, Some(DayRank::A));
+    }
 }
