@@ -17,16 +17,19 @@ export interface TabletModule {
   component: ComponentType<ModuleProps>;
 }
 
+/** Section keys. "workout" is the Stage 6 Workout & Fuel section. */
+export type TabletSectionId = "myBody" | "checkIn" | "mindData" | "workout";
+
 /** A section groups modules. Its texts live in TABLET_I18N[lang].sections[id]. */
 export interface TabletSection {
-  id: string;
+  id: TabletSectionId;
   icon: string;
   modules: TabletModule[];
 }
 
 /** Navigation state; owned by App so the tablet reopens where it was closed. */
 export interface TabletPath {
-  section: string | null;
+  section: TabletSectionId | null;
   module: string | null;
 }
 

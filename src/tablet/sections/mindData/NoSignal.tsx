@@ -28,10 +28,10 @@ export function NoSignal({ lang, day, onBack, onFill }: Props) {
             <div className="ns-signal-sub">{T.noSignalSub(day)}</div>
           </div>
           <svg className="ns-corners" viewBox="0 0 320 200">
-            <polyline points="12,30 12,12 30,12" fill="none" stroke="#43c0ae" strokeWidth="2" opacity="0.65" />
-            <polyline points="290,12 308,12 308,30" fill="none" stroke="#43c0ae" strokeWidth="2" opacity="0.65" />
-            <polyline points="12,170 12,188 30,188" fill="none" stroke="#43c0ae" strokeWidth="2" opacity="0.65" />
-            <polyline points="290,188 308,188 308,170" fill="none" stroke="#43c0ae" strokeWidth="2" opacity="0.65" />
+            <polyline points="12,30 12,12 30,12" fill="none" stroke="#38bdf8" strokeWidth="2" opacity="0.65" />
+            <polyline points="290,12 308,12 308,30" fill="none" stroke="#38bdf8" strokeWidth="2" opacity="0.65" />
+            <polyline points="12,170 12,188 30,188" fill="none" stroke="#38bdf8" strokeWidth="2" opacity="0.65" />
+            <polyline points="290,188 308,188 308,170" fill="none" stroke="#38bdf8" strokeWidth="2" opacity="0.65" />
           </svg>
           <div className="ns-status-bar">
             <span>{T.noSignalStatus}</span>

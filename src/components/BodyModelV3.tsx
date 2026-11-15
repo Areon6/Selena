@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { BodyProfile, BodyZone, Level } from "../types";
-import { I18N } from "../i18n";
+import { I18N, type Lang } from "../i18n";
 import { buildBodyGeometries, type BodyGeometries } from "./bodyGeometries";
 import { createEarthBackground, type EarthQuality } from "./earthBackground";
 import {
@@ -21,7 +21,7 @@ export interface BodyModelProps {
   selected: string;
   onSelect: (id: string) => void;
   radiationLevel: Level;
-  lang: "en" | "ru";
+  lang: Lang;
   /** Profile the geometry is BUILT from. A change rebuilds the point cloud / meshes (not the scene / renderer). */
   profile?: BodyProfile;
   /** Live slider draft: only applies a cheap group scale until `profile` catches up. */
@@ -53,9 +53,9 @@ const PICK_PRIORITY = ["eyes", "heart", "brain", "lungs", "bones", "radiation"];
 
 // Raw sRGB triplets (shader writes them without colour-space conversion)
 const COLOR_VEC: Record<Level, [number, number, number]> = {
-  nominal: [0.263, 0.753, 0.682], // #43c0ae
-  watch: [0.914, 0.686, 0.306], // #e8af4e
-  critical: [0.941, 0.376, 0.247], // #f0603f
+  nominal: [0.204, 0.827, 0.6], // #34d399
+  watch: [0.984, 0.749, 0.141], // #fbbf24
+  critical: [0.973, 0.443, 0.443], // #f87171
 };
 
 const DUST: [number, number, number] = [0.55, 0.663, 0.741]; // #8ca9bd
@@ -1092,18 +1092,36 @@ export const BodyModel: React.FC<BodyModelProps> = ({
   const t = I18N[lang];
 
   const items = [
-    { id: "brain", label: lang === "ru" ? "Мозг" : "Brain" },
-    { id: "eyes", label: lang === "ru" ? "Глаза (SANS)" : "Eyes" },
-    { id: "heart", label: lang === "ru" ? "Сердце" : "Heart" },
-    { id: "lungs", label: lang === "ru" ? "Лёгкие" : "Lungs" },
-    { id: "bones", label: lang === "ru" ? "Скелет" : "Skeleton" },
-    { id: "radiation", label: lang === "ru" ? "Радиация" : "Radiation" },
+    { id: "brain", label: "Brain" },
+    { id: "eyes", label: "Eyes · SANS" },
+    { id: "heart", label: "Heart" },
+    { id: "lungs", label: "Lungs" },
+    { id: "bones", label: "Skeleton" },
+    { id: "radiation", label: "Radiation" },
   ];
 
   const CSS_COLOR: Record<Level, string> = {
-    nominal: "#43c0ae",
-    watch: "#e8af4e",
-    critical: "#f0603f",
+    nominal: "#34d399",
+    watch: "#fbbf24",
+    critical: "#f87171",
+  };
+
+  const HAIRLINE = "1px solid rgba(255, 255, 255, 0.16)";
+  const mono = "var(--mono)";
+
+  // WebKitGTK: native button chrome must be reset explicitly on every custom button.
+  const btnBase: React.CSSProperties = {
+    WebkitAppearance: "none",
+    appearance: "none",
+    margin: 0,
+    borderRadius: 2,
+    border: HAIRLINE,
+    fontFamily: mono,
+    fontSize: 10.5,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    cursor: "pointer",
+    transition: "border-color 0.15s, color 0.15s",
   };
 
   return (
@@ -1112,9 +1130,9 @@ export const BodyModel: React.FC<BodyModelProps> = ({
         position: "relative",
         width: "100%",
         height: "100%",
-        minHeight: 460,
+        minHeight: 420,
         overflow: "hidden",
-        background: "#010206",
+        background: "#05070b",
         userSelect: "none",
       }}
     >
@@ -1124,37 +1142,32 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       <div
         style={{
           position: "absolute",
-          top: 12,
-          left: 16,
+          top: 10,
+          left: 12,
           display: "flex",
           flexDirection: "column",
-          gap: 3,
+          gap: 4,
           pointerEvents: "none",
-          fontFamily: "var(--sans)",
         }}
       >
         <span
           style={{
-            fontSize: 10.5,
-            letterSpacing: "0.06em",
+            fontFamily: mono,
+            fontSize: 10,
+            letterSpacing: "0.12em",
             textTransform: "uppercase",
-            color: "var(--faint)",
+            color: "#626c7c",
           }}
         >
-          {renderMode === "lidar"
-            ? lang === "ru"
-              ? "LiDAR-созвездие тела"
-              : "LiDAR constellation scan"
-            : lang === "ru"
-              ? "Голографическая модель тела"
-              : "Holographic anatomy mesh"}
+          {renderMode === "lidar" ? "LiDAR constellation scan" : "Holographic anatomy mesh"}
         </span>
 
         <span
           style={{
+            fontFamily: "var(--sans)",
             fontSize: 12.5,
             fontWeight: 500,
-            color: "#43c0ae",
+            color: "#e6eaf0",
             display: "flex",
             alignItems: "center",
             gap: 7,
@@ -1162,19 +1175,14 @@ export const BodyModel: React.FC<BodyModelProps> = ({
         >
           <span
             style={{
-              width: 7,
-              height: 7,
+              width: 6,
+              height: 6,
               borderRadius: "50%",
-              background: "#43c0ae",
-              boxShadow: "0 0 0 3px rgba(67, 192, 174, 0.18)",
+              background: "#38bdf8",
               display: "inline-block",
             }}
           />
-          {hoveredZone
-            ? t.zones[hoveredZone]?.name ?? hoveredZone
-            : lang === "ru"
-              ? "Вращайте модель · нажмите на орган"
-              : "Rotate model · click an organ"}
+          {hoveredZone ? (t.zones[hoveredZone]?.name ?? hoveredZone) : "Rotate model · click an organ"}
         </span>
       </div>
 
@@ -1182,19 +1190,17 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       <div
         style={{
           position: "absolute",
-          top: 12,
-          right: 14,
+          top: 10,
+          right: 12,
           display: "flex",
           alignItems: "center",
           gap: 6,
         }}
       >
         <div
-          style={{
-            display: "inline-flex",
-            border: "1px solid rgba(170, 200, 212, 0.24)",
-            background: "rgba(9, 16, 23, 0.78)",
-          }}
+          role="radiogroup"
+          aria-label="Render mode"
+          style={{ display: "inline-flex", border: HAIRLINE, borderRadius: 2, background: "#0b0f17" }}
         >
           {(
             [
@@ -1207,16 +1213,17 @@ export const BodyModel: React.FC<BodyModelProps> = ({
               <button
                 key={m.id}
                 type="button"
+                role="radio"
+                aria-checked={active}
                 onClick={() => setRenderMode(m.id)}
                 style={{
-                  padding: "5px 9px",
-                  fontFamily: "var(--sans)",
-                  fontSize: 11,
-                  fontWeight: active ? 600 : 400,
-                  color: active ? "#43c0ae" : "#9aa9b2",
-                  background: active ? "rgba(67, 192, 174, 0.14)" : "transparent",
+                  ...btnBase,
                   border: "none",
-                  cursor: "pointer",
+                  borderRadius: 0,
+                  padding: "6px 10px",
+                  fontWeight: active ? 600 : 400,
+                  color: active ? "#38bdf8" : "#98a2b3",
+                  background: active ? "rgba(56, 189, 248, 0.14)" : "#0b0f17",
                 }}
               >
                 {m.label}
@@ -1229,16 +1236,13 @@ export const BodyModel: React.FC<BodyModelProps> = ({
           type="button"
           onClick={() => resetCameraRef.current()}
           style={{
-            padding: "5px 10px",
-            fontFamily: "var(--sans)",
-            fontSize: 11,
-            color: "#cbd5e1",
-            background: "rgba(9, 16, 23, 0.78)",
-            border: "1px solid rgba(170, 200, 212, 0.24)",
-            cursor: "pointer",
+            ...btnBase,
+            padding: "6px 10px",
+            color: "#98a2b3",
+            background: "#0b0f17",
           }}
         >
-          {lang === "ru" ? "⟲ Сброс вида" : "⟲ Reset view"}
+          ⟲ Reset view
         </button>
       </div>
 
@@ -1246,21 +1250,18 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       <div
         style={{
           position: "absolute",
-          left: 14,
-          right: 14,
-          bottom: 12,
+          left: 12,
+          right: 12,
+          bottom: 10,
           display: "flex",
           flexWrap: "wrap",
           justifyContent: "center",
-          gap: 5,
+          gap: 4,
         }}
       >
         {items.map((item) => {
           const zoneObj = zones.find((z) => z.id === item.id);
-          const level: Level =
-            item.id === "radiation"
-              ? radiationLevel
-              : zoneObj?.level ?? "nominal";
+          const level: Level = item.id === "radiation" ? radiationLevel : (zoneObj?.level ?? "nominal");
           const isSelected = selected === item.id;
           const c = CSS_COLOR[level];
 
@@ -1270,19 +1271,26 @@ export const BodyModel: React.FC<BodyModelProps> = ({
               type="button"
               onClick={() => onSelect(item.id)}
               style={{
-                padding: "5px 10px",
-                fontFamily: "var(--sans)",
-                fontSize: 11,
+                ...btnBase,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "5px 9px",
                 fontWeight: isSelected ? 600 : 400,
-                cursor: "pointer",
-                color: isSelected ? c : "#9aa9b2",
-                background: isSelected
-                  ? "rgba(13, 21, 29, 0.88)"
-                  : "rgba(7, 12, 17, 0.72)",
-                border: `1px solid ${isSelected ? c : "rgba(170, 200, 212, 0.2)"}`,
-                transition: "border-color 0.15s, color 0.15s",
+                color: isSelected ? "#e6eaf0" : "#98a2b3",
+                background: isSelected ? "#111622" : "#0b0f17",
+                border: `1px solid ${isSelected ? c : "rgba(255, 255, 255, 0.12)"}`,
               }}
             >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: c,
+                  display: "inline-block",
+                }}
+              />
               {item.label}
             </button>
           );

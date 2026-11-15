@@ -9,7 +9,10 @@ import { useBodyProfile } from "./hooks/useBodyProfile";
 import { Tablet } from "./tablet/Tablet";
 import { TABLET_HOME, type TabletPath } from "./tablet/types";
 import { TABLET_I18N } from "./tablet/tabletI18n";
+import { WelcomeScreen, roleAbbr } from "./components/WelcomeScreen";
+import { getCrewRoster, saveCrewSlot, type CrewRoster, type CrewSlot } from "./api/stage6";
 
+const LANG: Lang = "en";
 const HISTORY = 90;
 
 interface History {
@@ -21,6 +24,10 @@ interface History {
 }
 const EMPTY: History = { hr: [], sys: [], spo2: [], dose: [], co2: [] };
 const push = (a: number[], v: number) => [...a.slice(-(HISTORY - 1)), v];
+
+function activeSlotOf(r: CrewRoster): CrewSlot {
+  return r.slots.find((s) => s.id === r.activeId) ?? r.slots[0];
+}
 
 function Spark({ data, minSpan }: { data: number[]; minSpan: number }) {
   const W = 120;
@@ -70,11 +77,14 @@ export default function App() {
   const [hist, setHist] = useState<History>(EMPTY);
   const [selected, setSelected] = useState("heart");
   const [error, setError] = useState<string | null>(null);
-  const [lang, setLang] = useState<Lang>("ru");
+  const [roster, setRoster] = useState<CrewRoster | null>(null);
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
+  const [welcomeReopened, setWelcomeReopened] = useState(false);
   const [tabletOpen, setTabletOpen] = useState(false);
   const [tabletPath, setTabletPath] = useState<TabletPath>(TABLET_HOME);
   const body = useBodyProfile(setError);
 
+  const lang = LANG;
   const t = I18N[lang];
 
   const pull = useCallback(async () => {
@@ -109,14 +119,60 @@ export default function App() {
     return () => clearInterval(id);
   }, [pull]);
 
-  if (!report || !body.loaded) {
+  useEffect(() => {
+    let alive = true;
+    getCrewRoster()
+      .then((r) => {
+        if (!alive) return;
+        setRoster(r);
+        setWelcomeOpen(true);
+      })
+      .catch((e) => alive && setError(String(e)));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const stopDrag = (e: DragEvent) => {
+      e.preventDefault();
+    };
+    document.addEventListener("dragstart", stopDrag, true);
+    return () => document.removeEventListener("dragstart", stopDrag, true);
+  }, []);
+
+  if (!report || !body.loaded || !roster) {
     return (
       <div className="boot">
-        <div className="eyebrow">Selena core</div>
-        <div>{error ? `Backend unreachable: ${error}` : "Starting on-board engine…"}</div>
+        <div className="eyebrow">~/selena · core</div>
+        <div>{error ? `Backend unreachable: ${error}` : "Initializing on-board flight deck…"}</div>
       </div>
     );
   }
+
+  const activeSlot = activeSlotOf(roster);
+  const crew = activeSlot.crew;
+  const syncedBody: typeof body = {
+    ...body,
+    apply: async () => {
+      await body.apply();
+      const d = body.draft;
+      const updated = await saveCrewSlot({
+        ...activeSlot,
+        body: {
+          sex: d.sex,
+          heightCm: d.heightCm,
+          weightKg: d.weightKg,
+          bodyFatPct: d.bodyFatPct,
+          muscularity: d.muscularity,
+          shoulderWidth: d.shoulderWidth,
+          waist: d.waist,
+          hips: d.hips,
+        },
+      });
+      setRoster(updated);
+    },
+  };
 
   const zone = report.zones.find((z) => z.id === selected) ?? report.zones[0];
   const localizedZone = t.zones[zone.id];
@@ -136,28 +192,29 @@ export default function App() {
         <div className="brand">
           <span className="mark" />
           <span className="wordmark">SELENA</span>
-          <span className="tag">{t.systemTitle}</span>
+          <span className="tag">~/selena · {t.systemTitle}</span>
         </div>
+        <span className="mission-badge">
+          <span className="dot" />
+          {t.missionBadge(report.missionDay, report.commsDelayMin)}
+        </span>
         <div className="top-meta">
-          <div className="chip chip-lang">
-            <button
-              type="button"
-              className="lang-opt"
-              data-active={lang === "en"}
-              onClick={() => setLang("en")}
-            >
-              EN
-            </button>
-            <span className="lang-sep">/</span>
-            <button
-              type="button"
-              className="lang-opt"
-              data-active={lang === "ru"}
-              onClick={() => setLang("ru")}
-            >
-              RU
-            </button>
-          </div>
+          <button
+            type="button"
+            className="chip chip-btn chip-crew"
+            data-setup={!crew.onboarded}
+            title={t.crewChipTitle}
+            onClick={() => {
+              setWelcomeReopened(crew.onboarded);
+              setWelcomeOpen(true);
+            }}
+          >
+            <span className="eyebrow">Crew</span>
+            <span>{crew.onboarded ? `${roleAbbr(crew.role)} · ${crew.callsign}` : t.crewSetup}</span>
+            <span className="chip-slot-count">
+              {roster.slots.length}/{roster.maxSlots}
+            </span>
+          </button>
 
           <button
             type="button"
@@ -168,15 +225,13 @@ export default function App() {
             ▣ {TABLET_I18N[lang].open}
           </button>
 
-          <span className="chip">
-            <span className="eyebrow">{t.mission}</span> {t.day} {report.missionDay}
-          </span>
           <span className="chip" data-level={report.level}>
             <span className="dot" /> {t.levels[report.level]}
           </span>
           <span className="chip">
             <span className="eyebrow">{t.mode}</span> {report.autonomous ? t.autonomous : t.linked}
           </span>
+          <span className="chip">{t.offline}</span>
         </div>
       </header>
 
@@ -203,7 +258,7 @@ export default function App() {
       )}
 
       <main className="main">
-        {/* ЛЕВАЯ КОЛОНКА */}
+        {/* left: telemetry */}
         <aside className="col">
           <section className="panel">
             <div className="eyebrow">{t.fiveHazards}</div>
@@ -272,7 +327,7 @@ export default function App() {
           </section>
         </aside>
 
-        {/* ЦЕНТР (3D СКАНЕР ТЕЛА) */}
+        {/* center: 3D body scanner */}
         <section className="col center">
           <div className="panel stage" style={{ padding: 0, overflow: "hidden" }}>
             <BodyModel
@@ -336,7 +391,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* ПРАВАЯ КОЛОНКА */}
+        {/* right: selected region + countermeasures */}
         <aside className="col">
           <section className="panel detail" data-level={zone.level}>
             <div className="detail-head">
@@ -431,13 +486,29 @@ export default function App() {
           <Tablet
             lang={lang}
             report={report}
-            body={body}
+            body={syncedBody}
             path={tabletPath}
             onNavigate={setTabletPath}
             onClose={() => setTabletOpen(false)}
           />
         )}
       </main>
+
+      {welcomeOpen && (
+        <WelcomeScreen
+          roster={roster}
+          body={body}
+          zones={report.zones}
+          commsDelayMin={report.commsDelayMin}
+          reopened={welcomeReopened}
+          onRosterChange={setRoster}
+          onClose={() => {
+            setWelcomeOpen(false);
+            body.commitGeometry();
+            void pull();
+          }}
+        />
+      )}
 
       {error && <div className="toast">{error}</div>}
     </div>

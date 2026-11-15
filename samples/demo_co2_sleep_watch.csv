@@ -1,0 +1,7 @@
+# SELENA Demo Export - CO2 Scrubber Drift & Sleep Restriction (Watch/Critical triggers)
+# Units: ppCO2 strictly in mmHg (>= 3.0 Watch NASA-STD-3001 V2 6004; >= 4.5 Critical OCHMO-TB-004), dose_usv in uSv/h
+day,hr,bp_sys,bp_dia,spo2,ppco2,sleep_h,dose_usv
+73,81,132,84,96.5,3.2,6.3,40
+74,88,137,87,96.0,3.8,5.9,41
+76,99,145,92,94.8,4.6,4.8,43
+77,80,130,83,96.6,3.4,6.1,39

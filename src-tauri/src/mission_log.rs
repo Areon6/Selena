@@ -122,11 +122,10 @@ pub(crate) fn sanitize_entry(mut e: DayEntry) -> Result<DayEntry, String> {
     e.hr = clean_opt(e.hr, 30.0, 220.0);
     e.bp_sys = clean_opt(e.bp_sys, 60.0, 260.0);
     e.bp_dia = clean_opt(e.bp_dia, 35.0, 160.0);
-    if let (Some(sys), Some(dia)) = (e.bp_sys, e.bp_dia) {
-        if sys <= dia {
+    if let (Some(sys), Some(dia)) = (e.bp_sys, e.bp_dia)
+        && sys <= dia {
             return Err("systolic must be higher than diastolic".into());
         }
-    }
     e.spo2 = clean_opt(e.spo2, 70.0, 100.0);
     e.ppco2 = clean_opt(e.ppco2, 0.0, 25.0);
     e.sleep_hours = clean_opt(e.sleep_hours, 0.0, 16.0);
@@ -216,9 +215,9 @@ pub fn compute_level_rank(e: &DayEntry) -> (DayLevel, DayRank, u8, u8, Vec<Score
     }
     if let Some(hr) = e.hr {
         let actual = format!("{hr:.0} bpm");
-        if hr >= 130.0 || hr < 45.0 {
+        if !(45.0..130.0).contains(&hr) {
             f.push(factor("hr_crit", actual, "50–99 bpm", -24, Critical, "illustrative"));
-        } else if hr >= 100.0 || hr < 50.0 {
+        } else if !(50.0..100.0).contains(&hr) {
             f.push(factor("hr_watch", actual, "50–99 bpm", -10, Watch, "illustrative"));
         }
     }
@@ -270,11 +269,10 @@ pub fn compute_level_rank(e: &DayEntry) -> (DayLevel, DayRank, u8, u8, Vec<Score
             f.push(factor("mood_sub", actual, ">= 3/5", -7, Nominal, "illustrative"));
         }
     }
-    if let Some(energy) = e.energy {
-        if energy <= 1 {
+    if let Some(energy) = e.energy
+        && energy <= 1 {
             f.push(factor("energy_low", format!("{energy}/5"), ">= 2/5", -8, Nominal, "illustrative"));
         }
-    }
 
     // Level: worst single-metric severity, or the accumulated raw score if that is worse.
     let floor_level = f.iter().map(|x| x.severity).max().unwrap_or(Nominal);
@@ -494,9 +492,9 @@ pub fn load_or_init(app: &AppHandle) -> MissionLog {
     let Ok(path) = file_path(app) else {
         return make_fresh_log();
     };
-    if path.exists() {
-        if let Ok(raw) = fs::read_to_string(&path) {
-            if let Ok(mut log) = serde_json::from_str::<MissionLog>(&raw) {
+    if path.exists()
+        && let Ok(raw) = fs::read_to_string(&path)
+            && let Ok(mut log) = serde_json::from_str::<MissionLog>(&raw) {
                 log.current_day = CURRENT_MISSION_DAY;
                 log.entries = log
                     .entries
@@ -507,8 +505,6 @@ pub fn load_or_init(app: &AppHandle) -> MissionLog {
                 log.entries.sort_by_key(|e| e.day);
                 return log;
             }
-        }
-    }
     let fresh = make_fresh_log();
     let _ = save_log(app, &fresh);
     fresh
