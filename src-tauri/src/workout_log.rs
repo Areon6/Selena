@@ -312,7 +312,7 @@ fn build_summary(day: u32, bucket: Option<&DayBucket>) -> WorkoutDaySummary {
 
 // ── Pure store operations (used by both IPC commands and unit tests) ─────────
 
-fn op_seed_default_day(store: &mut WorkoutLogStore, day: u32) -> Result<WorkoutDaySummary, String> {
+pub fn op_seed_default_day(store: &mut WorkoutLogStore, day: u32) -> Result<WorkoutDaySummary, String> {
     let day = validate_day(day)?;
     let bucket_empty = store.days.get(&day).is_none_or(|b| b.workouts.is_empty());
 

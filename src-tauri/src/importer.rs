@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
 #[derive(Debug, Clone, Default)]
-struct ParsedDeviceRow {
+pub struct ParsedDeviceRow {
     line: usize,
     day: u32,
     hr: Option<f64>,
@@ -118,7 +118,7 @@ fn parse_cell_f64(cell: &str, label: &str, lo: f64, hi: f64) -> Result<Option<f6
     Ok(Some(validate_range(label, v, lo, hi)?))
 }
 
-fn parse_csv(raw: &str) -> Result<(Vec<ParsedDeviceRow>, Vec<String>, usize), String> {
+pub fn parse_csv(raw: &str) -> Result<(Vec<ParsedDeviceRow>, Vec<String>, usize), String> {
     let text = raw.strip_prefix('\u{feff}').unwrap_or(raw);
     let mut lines = text.lines().enumerate().filter(|(_, l)| {
         let t = l.trim();
@@ -337,7 +337,7 @@ fn json_opt_tags(map: &serde_json::Map<String, Value>) -> Result<Option<Vec<Stri
     }
 }
 
-fn parse_json(raw: &str) -> Result<(Vec<ParsedDeviceRow>, Vec<String>, usize), String> {
+pub fn parse_json(raw: &str) -> Result<(Vec<ParsedDeviceRow>, Vec<String>, usize), String> {
     let val: Value =
         serde_json::from_str(raw).map_err(|e| format!("Invalid JSON syntax: {e}"))?;
 
@@ -446,7 +446,7 @@ fn parse_json(raw: &str) -> Result<(Vec<ParsedDeviceRow>, Vec<String>, usize), S
     Ok((valid, warnings, skipped))
 }
 
-fn merge_rows_into_log(
+pub fn merge_rows_into_log(
     log: &mut MissionLog,
     rows: Vec<ParsedDeviceRow>,
     warnings: &mut Vec<String>,

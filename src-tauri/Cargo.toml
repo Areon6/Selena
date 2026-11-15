@@ -31,3 +31,8 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+[profile.perf]
+inherits = "release"
+panic = "unwind"
+strip = false

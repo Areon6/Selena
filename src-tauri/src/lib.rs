@@ -15,13 +15,13 @@ use std::sync::{Mutex, PoisonError};
 use std::time::Instant;
 use tauri::{AppHandle, State};
 
-mod analytics;
-mod crew_profile;
-mod importer;
-mod lexicon;
-mod mission_log;
+pub mod analytics;
+pub mod crew_profile;
+pub mod importer;
+pub mod lexicon;
+pub mod mission_log;
 mod profile;
-mod workout_log;
+pub mod workout_log;
 
 const MISSION_DAY: u32 = 78;
 const COMMS_DELAY_MIN: u32 = 22;
@@ -754,4 +754,26 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[doc(hidden)]
+pub fn bench_telemetry_steps(iters: usize, co2_failed: bool, storm_active: bool) -> (usize, usize) {
+    let inner = Inner {
+        started: Instant::now(),
+        solar_at: storm_active.then(Instant::now),
+        co2_fail_at: co2_failed.then(Instant::now),
+        co2_restore: None,
+        tasks: default_tasks(),
+        sleep: Some(SleepEntry { hours: 7.4, mood: 4, at: Instant::now() }),
+        bp: Some(BpEntry { systolic: 116.0, diastolic: 74.0, pulse: 62.0, at: Instant::now() }),
+        crew_baseline: (62.0, 116.0, 74.0),
+        crew_mtime: None,
+    };
+    let mut bytes = 0usize;
+    for _ in 0..iters {
+        let report = build_report(&inner);
+        let json = serde_json::to_string(&report).expect("serialize");
+        bytes += std::hint::black_box(&json).len();
+    }
+    (iters, bytes)
 }
