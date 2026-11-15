@@ -33,9 +33,42 @@ export function DayCard({ lang, entry, onBack, onEdit }: Props) {
       <div className="dc-header">
         <span className="dc-day-label">{T.dayTitle(entry.day)}</span>
         <span className="dc-rank">{entry.rank ?? "—"}</span>
+        {entry.score != null && <span className="dc-score-num">{entry.score}/100</span>}
         <span className="dc-level">{T.levels[level]}</span>
         <span className="dc-source-badge">{T.sources[source]}</span>
       </div>
+
+      {entry.score != null && (
+        <div className="dc-score">
+          <div className="dc-score-head">
+            <span className="dc-score-title">{T.score.title}</span>
+            {entry.metricsCount != null && (
+              <span className="dc-score-count">{T.score.metrics(entry.metricsCount)}</span>
+            )}
+          </div>
+          <div className="dc-score-sub">{T.score.subtitle}</div>
+
+          {entry.scoreFactors != null && entry.scoreFactors.length > 0 ? (
+            <ul className="dc-score-list">
+              {entry.scoreFactors.map((f) => (
+                <li key={f.key} className="dc-score-item" data-level={f.severity}>
+                  <span className="dc-score-name">{T.score.factors[f.key] ?? f.key}</span>
+                  <span className="dc-score-delta">{f.delta}</span>
+                  <span className="dc-score-vals">
+                    {f.actual} <span className="dc-score-target">({f.target})</span>
+                  </span>
+                  <span className="dc-score-basis" data-basis={f.basis}>
+                    {T.score.basis[f.basis] ?? f.basis}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="dc-score-ok">{T.score.allClear}</div>
+          )}
+          <div className="dc-score-note">{T.score.disclaimer}</div>
+        </div>
+      )}
 
       <div className="dc-section-title">{T.physioTitle}</div>
       <div className="dc-grid">

@@ -121,6 +121,16 @@ export type DaySource = "sample" | "checkin" | "manual" | "import";
 export type DayRank = "A" | "B" | "C" | "D";
 export type Sentiment = "positive" | "mixed" | "negative" | "neutral";
 
+/** One line of the day-score breakdown. `key` is a stable ID localized in TABLET_I18N. */
+export interface ScoreFactor {
+  key: string;
+  actual: string;
+  target: string;
+  delta: number;
+  severity: Level;
+  basis: "nasa" | "mixed" | "illustrative";
+}
+
 export interface DayEntry {
   day: number;
   source?: DaySource | null;
@@ -143,6 +153,10 @@ export interface DayEntry {
 
   level?: Level | null;
   rank?: DayRank | null;
+  score?: number | null;
+  /** How many of the 10 scored fields are filled. */
+  metricsCount?: number | null;
+  scoreFactors?: ScoreFactor[] | null;
 }
 
 export interface MissionLog {

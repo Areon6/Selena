@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { BodyProfile, BodyZone, Level } from "../types";
 import { I18N } from "../i18n";
-import { buildBodyGeometries } from "./bodyGeometries";
+import { buildBodyGeometries, type BodyGeometries } from "./bodyGeometries";
 import { createEarthBackground, type EarthQuality } from "./earthBackground";
 import {
   DEFAULT_PROFILE,
@@ -14,15 +14,17 @@ import {
   type AnatomySpec,
 } from "../bodyParams";
 
+export type BodyRenderMode = "lidar" | "holo";
+
 export interface BodyModelProps {
   zones: BodyZone[];
   selected: string;
   onSelect: (id: string) => void;
   radiationLevel: Level;
   lang: "en" | "ru";
-  /** Profile the geometry is BUILT from. A change rebuilds the point cloud (not the scene / renderer / material). */
+  /** Profile the geometry is BUILT from. A change rebuilds the point cloud / meshes (not the scene / renderer). */
   profile?: BodyProfile;
-  /** Live slider draft: only applies a cheap `pointCloud.scale` until `profile` catches up. */
+  /** Live slider draft: only applies a cheap group scale until `profile` catches up. */
   previewProfile?: BodyProfile;
   /**
    * Quality of the orbital Earth backdrop. "high" is the default; if the frame rate stays low the
@@ -218,16 +220,20 @@ function sampleSurface(geo: THREE.BufferGeometry, count: number, rand: () => num
   return { pos, nrm };
 }
 
-function buildConstellationPointCloud(spec: AnatomySpec): THREE.BufferGeometry {
-  const g = buildBodyGeometries(spec);
+function buildBodyAssets(spec: AnatomySpec): {
+  pointGeo: THREE.BufferGeometry;
+  geometries: BodyGeometries;
+  centers: Record<string, THREE.Vector3>;
+} {
+  const geometries = buildBodyGeometries(spec);
 
   const sources: { id: string; geo: THREE.BufferGeometry }[] = [
-    { id: "radiation", geo: g.shell },
-    { id: "brain", geo: g.brain },
-    { id: "eyes", geo: g.eyes },
-    { id: "heart", geo: g.heart },
-    { id: "lungs", geo: g.lungs },
-    { id: "bones", geo: g.skeleton },
+    { id: "radiation", geo: geometries.shell },
+    { id: "brain", geo: geometries.brain },
+    { id: "eyes", geo: geometries.eyes },
+    { id: "heart", geo: geometries.heart },
+    { id: "lungs", geo: geometries.lungs },
+    { id: "bones", geo: geometries.skeleton },
   ];
 
   const total = sources.reduce((s, src) => s + ZONE_COUNTS[src.id], 0);
@@ -238,6 +244,7 @@ function buildConstellationPointCloud(spec: AnatomySpec): THREE.BufferGeometry {
   const aSize = new Float32Array(total);
   const aPhase = new Float32Array(total);
   const aCenter = new Float32Array(total * 3);
+  const centers: Record<string, THREE.Vector3> = {};
 
   let offset = 0;
 
@@ -249,7 +256,6 @@ function buildConstellationPointCloud(spec: AnatomySpec): THREE.BufferGeometry {
 
     const { pos, nrm } = sampleSurface(src.geo, n, rand);
 
-    // Zone centroid: pivot for heartbeat / breathing scaling
     let cx = 0;
     let cy = 0;
     let cz = 0;
@@ -261,6 +267,7 @@ function buildConstellationPointCloud(spec: AnatomySpec): THREE.BufferGeometry {
     cx /= n;
     cy /= n;
     cz /= n;
+    centers[src.id] = new THREE.Vector3(cx, cy, cz);
 
     positions.set(pos, offset * 3);
     normals.set(nrm, offset * 3);
@@ -276,23 +283,22 @@ function buildConstellationPointCloud(spec: AnatomySpec): THREE.BufferGeometry {
     }
 
     offset += n;
-    src.geo.dispose();
   }
 
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
-  geo.setAttribute("aZone", new THREE.BufferAttribute(aZone, 1));
-  geo.setAttribute("aSize", new THREE.BufferAttribute(aSize, 1));
-  geo.setAttribute("aPhase", new THREE.BufferAttribute(aPhase, 1));
-  geo.setAttribute("aCenter", new THREE.BufferAttribute(aCenter, 3));
-  geo.computeBoundingSphere();
+  const pointGeo = new THREE.BufferGeometry();
+  pointGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  pointGeo.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
+  pointGeo.setAttribute("aZone", new THREE.BufferAttribute(aZone, 1));
+  pointGeo.setAttribute("aSize", new THREE.BufferAttribute(aSize, 1));
+  pointGeo.setAttribute("aPhase", new THREE.BufferAttribute(aPhase, 1));
+  pointGeo.setAttribute("aCenter", new THREE.BufferAttribute(aCenter, 3));
+  pointGeo.computeBoundingSphere();
 
-  return geo;
+  return { pointGeo, geometries, centers };
 }
 
 /* ------------------------------------------------------------------ */
-/* Shaders                                                             */
+/* Shaders (LiDAR Points)                                              */
 /* ------------------------------------------------------------------ */
 
 const VERT = /* glsl */ `
@@ -320,11 +326,9 @@ const VERT = /* glsl */ `
     vec3 pos = position;
     int zi = int(aZone + 0.5);
 
-    // Heartbeat: scale about the heart centroid (no size/brightness blow-up)
     if (zi == 3) {
       pos = aCenter + (pos - aCenter) * (1.0 + 0.05 * uBeat);
     }
-    // Breathing: lungs expand / contract about their centroid
     if (zi == 4) {
       pos = aCenter + (pos - aCenter) *
         vec3(1.0 + 0.030 * uBreath, 1.0 + 0.040 * uBreath, 1.0 + 0.035 * uBreath);
@@ -335,15 +339,12 @@ const VERT = /* glsl */ `
 
     float dist = length(mv.xyz);
 
-    // Fresnel-style rim: 0 facing the camera, 1 at grazing angle.
-    // abs() makes it independent of the normal's winding direction.
     vec3 nV = normalize(normalMatrix * normal);
     vec3 toCam = normalize(-mv.xyz);
     float fres = 1.0 - abs(dot(nV, toCam));
-    float rimShell = pow(fres, 4.0);   // razor-thin silhouette on the body
-    float rimOrg = pow(fres, 3.0);     // softer edge emphasis on bones / organs
+    float rimShell = pow(fres, 4.0);
+    float rimOrg = pow(fres, 3.0);
 
-    // Anchor stars (large aSize) vs faint dust (small aSize)
     float bright = smoothstep(1.45, 1.65, aSize);
 
     float sel = abs(float(zi) - uSelectedZone) < 0.5 ? 1.0 : 0.0;
@@ -356,31 +357,24 @@ const VERT = /* glsl */ `
     float px = aSize;
 
     if (zi == 0) {
-      // Body: almost transparent front/interior, bright whitish contour
       alpha = (0.12 + 0.90 * rimShell) * tw;
       col = mix(col, vec3(0.92, 0.98, 1.0), rimShell * 0.60);
       px *= 1.0 + rimShell * 0.15;
     } else if (zi == 5) {
-      // Skeleton: thin haze-free structure, edges emphasised
       alpha = 0.26 + 0.34 * rimOrg;
       col = mix(col, vec3(0.92, 0.98, 1.0), rimOrg * 0.20);
     } else if (zi == 3 || zi == 4) {
-      // Heart / lungs: low per-point opacity so additive overlap stays textured
       alpha = 0.20 + 0.40 * rimOrg;
       alpha *= 1.0 + 0.12 * (zi == 3 ? uBeat : 0.0);
     } else {
-      // Brain / eyes
       alpha = 0.34 + 0.40 * rimOrg;
     }
 
-    // Star magnitude: anchor stars shine, dust stays faint
     alpha *= mix(0.80, 1.50, bright);
 
-    // Selection / hover emphasis (size stays within the 5 px cap below)
     px *= 1.0 + sel * (0.30 + 0.15 * pulse) + hov * 0.18;
     alpha += sel * (0.18 + 0.14 * pulse) + hov * 0.10;
 
-    // Solar particle event: proton-flux band sweeps up the body
     if (uRadiationCrit > 0.5) {
       float w = fract(pos.y / uBodyHeight - uTime * 0.18);
       float band = smoothstep(0.0, 0.04, w) * (1.0 - smoothstep(0.04, 0.17, w));
@@ -392,14 +386,11 @@ const VERT = /* glsl */ `
       px *= 1.0 + band * 0.30 * k;
     }
 
-    // Depth cue: points nearer the camera are brighter, far ones recede
     float dn = clamp((dist - (uCamDist - 0.45)) / 0.9, 0.0, 1.0);
     alpha *= mix(1.0, 0.5, dn);
 
-    // Global brightness lift
     alpha *= 1.9;
 
-    // Gentle perspective attenuation, hard 1–5 px cap
     float atten = clamp(uRefDist / dist, 0.8, 1.3);
     gl_PointSize = clamp(px * atten, 1.0, 5.0) * uPixelRatio;
 
@@ -413,19 +404,107 @@ const FRAG = /* glsl */ `
   varying float vAlpha;
 
   void main() {
-    // r: 0 at sprite centre, 1 at its edge. Purely radial profile,
-    // so no 4-ray "cartoon star" artefacts.
     float r = length(gl_PointCoord - vec2(0.5)) * 2.0;
     if (r > 1.0) discard;
 
-    float core = exp(-r * r * 7.0);           // small hot nucleus
-    float halo = exp(-r * r * 3.0) * 0.22;    // faint, fast-fading glow
+    float core = exp(-r * r * 7.0);
+    float halo = exp(-r * r * 3.0) * 0.22;
     float edge = 1.0 - smoothstep(0.85, 1.0, r);
 
     float intensity = (core + halo) * edge;
-    vec3 col = mix(vColor, vec3(1.0), core * 0.65);  // white-hot centre
+    vec3 col = mix(vColor, vec3(1.0), core * 0.65);
 
     gl_FragColor = vec4(col, vAlpha * intensity);
+  }
+`;
+
+/* ------------------------------------------------------------------ */
+/* Shaders (Alternative Fresnel X-Ray Holo Mesh)                       */
+/* ------------------------------------------------------------------ */
+
+const HOLO_VERT = /* glsl */ `
+  uniform float uBeat;
+  uniform float uBreath;
+  uniform int uZoneNum;
+  uniform vec3 uCenter;
+
+  varying vec3 vNormalView;
+  varying vec3 vViewDir;
+  varying float vLocalY;
+
+  void main() {
+    vec3 pos = position;
+    if (uZoneNum == 3) {
+      pos = uCenter + (pos - uCenter) * (1.0 + 0.055 * uBeat);
+    } else if (uZoneNum == 4) {
+      pos = uCenter + (pos - uCenter) *
+        vec3(1.0 + 0.032 * uBreath, 1.0 + 0.042 * uBreath, 1.0 + 0.035 * uBreath);
+    }
+
+    vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+    gl_Position = projectionMatrix * mv;
+
+    vNormalView = normalize(normalMatrix * normal);
+    vViewDir = normalize(-mv.xyz);
+    vLocalY = pos.y;
+  }
+`;
+
+const HOLO_FRAG = /* glsl */ `
+  uniform float uTime;
+  uniform float uSelected;
+  uniform float uHovered;
+  uniform float uRadiationCrit;
+  uniform float uBodyHeight;
+  uniform int uZoneNum;
+  uniform vec3 uColor;
+
+  varying vec3 vNormalView;
+  varying vec3 vViewDir;
+  varying float vLocalY;
+
+  void main() {
+    float ndotv = abs(dot(normalize(vNormalView), normalize(vViewDir)));
+    float fres = clamp(1.0 - ndotv, 0.0, 1.0);
+    float pulse = 0.5 + 0.5 * sin(uTime * 4.5);
+
+    vec3 col = uColor;
+    float alpha;
+
+    if (uZoneNum == 0) {
+      // Body shell: subtle x-ray veil in center, sharp Fresnel silhouette
+      float rim = pow(fres, 2.8);
+      alpha = 0.014 + 0.25 * rim;
+      col = mix(col, vec3(0.90, 0.97, 1.0), rim * 0.45);
+    } else if (uZoneNum == 5) {
+      // Skeleton: clean translucent structural contour
+      float rim = pow(fres, 2.0);
+      alpha = 0.065 + 0.19 * rim;
+      col = mix(col, vec3(0.92, 0.97, 1.0), rim * 0.20);
+    } else {
+      // Vital organs: crisp translucent volume + bright rim
+      float rim = pow(fres, 1.7);
+      alpha = 0.14 + 0.34 * rim;
+      col = mix(col * 0.85, mix(col, vec3(1.0), 0.30), rim);
+    }
+
+    if (uSelected > 0.5) {
+      alpha += (uZoneNum == 0 ? 0.08 : 0.14) * (0.75 + 0.25 * pulse);
+      col = mix(col, vec3(1.0), 0.12 + 0.08 * pulse);
+    } else if (uHovered > 0.5) {
+      alpha += uZoneNum == 0 ? 0.04 : 0.08;
+    }
+
+    if (uRadiationCrit > 0.5) {
+      float w = fract(vLocalY / uBodyHeight - uTime * 0.18);
+      float band = smoothstep(0.0, 0.04, w) * (1.0 - smoothstep(0.04, 0.17, w));
+      float k = uZoneNum == 0 ? 1.0 : 0.40;
+      vec3 flux = vec3(0.941, 0.376, 0.247);
+      col = mix(col, flux, band * k);
+      alpha += band * 0.22 * k;
+    }
+
+    gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.95));
   }
 `;
 
@@ -433,7 +512,6 @@ const FRAG = /* glsl */ `
 /* Animation helpers                                                   */
 /* ------------------------------------------------------------------ */
 
-// Double-pulse heartbeat (lub-dub), ~72 bpm
 function heartbeat(t: number): number {
   const period = 60 / 72;
   const ph = (t % period) / period;
@@ -442,7 +520,6 @@ function heartbeat(t: number): number {
   return g(ph, 0.06, 0.04) + 0.6 * g(ph, 0.24, 0.05);
 }
 
-// Smooth breathing cycle, ~4.5 s
 function breathing(t: number): number {
   return 0.5 - 0.5 * Math.cos((t * Math.PI * 2) / 4.5);
 }
@@ -463,23 +540,22 @@ export const BodyModel: React.FC<BodyModelProps> = ({
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const [hoveredZone, setHoveredZone] = useState<string | null>(null);
+  const [renderMode, setRenderMode] = useState<BodyRenderMode>("lidar");
 
-  const propsRef = useRef({ zones, selected, radiationLevel, onSelect });
+  const propsRef = useRef({ zones, selected, radiationLevel, onSelect, renderMode });
 
   useEffect(() => {
-    propsRef.current = { zones, selected, radiationLevel, onSelect };
-  }, [zones, selected, radiationLevel, onSelect]);
+    propsRef.current = { zones, selected, radiationLevel, onSelect, renderMode };
+  }, [zones, selected, radiationLevel, onSelect, renderMode]);
 
-  // Profile the scene is initially built from (read once, inside the mount effect)
   const initialProfileRef = useRef<BodyProfile>(profile);
-
-  // Earth backdrop quality: read once at mount, then driven through applyEarthQualityRef
   const earthQualityRef = useRef<EarthQuality>(earthQuality);
 
   const resetCameraRef = useRef<() => void>(() => {});
   const applyGeometryRef = useRef<(p: BodyProfile) => void>(() => {});
   const applyPreviewRef = useRef<(p: BodyProfile | undefined) => void>(() => {});
   const applyEarthQualityRef = useRef<(q: EarthQuality) => void>(() => {});
+  const applyRenderModeRef = useRef<(m: BodyRenderMode) => void>(() => {});
 
   useEffect(() => {
     const container = mountRef.current;
@@ -492,13 +568,11 @@ export const BodyModel: React.FC<BodyModelProps> = ({
 
     let spec = deriveAnatomy(initialProfileRef.current);
     let builtKey = profileKey(initialProfileRef.current);
-    const k0 = spec.heightM / REF_HEIGHT_M; // camera framing scales with the body
+    const k0 = spec.heightM / REF_HEIGHT_M;
 
     // 1. SCENE AND CAMERA
 
     const scene = new THREE.Scene();
-    // No background colour: the Earth backdrop (earthBackground.ts) is rendered first and
-    // this scene is drawn on top of it.
     scene.background = null;
 
     const camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 50);
@@ -515,7 +589,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
     });
     renderer.setPixelRatio(pixelRatio);
     renderer.setSize(width, height, false);
-    renderer.autoClear = false; // two passes per frame: backdrop, then the body
+    renderer.autoClear = false;
 
     const dom = renderer.domElement;
     dom.style.display = "block";
@@ -526,7 +600,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
     dom.style.cursor = "grab";
     container.appendChild(dom);
 
-    // 2b. EARTH BACKDROP (isolated module; textures are generated once, spread over a few frames)
+    // 2b. EARTH BACKDROP (earthBackground.ts — untouched)
 
     const earth = createEarthBackground({
       quality: earthQualityRef.current,
@@ -534,7 +608,6 @@ export const BodyModel: React.FC<BodyModelProps> = ({
     });
     earth.setSize(width, height, pixelRatio);
 
-    // Auto-downgrade bookkeeping (only while the backdrop runs in "high")
     let autoDowngraded = false;
     let lastFrameT = 0;
     let accDt = 0;
@@ -542,7 +615,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
     let badWindows = 0;
 
     applyEarthQualityRef.current = (q: EarthQuality) => {
-      autoDowngraded = q === "low"; // an explicit "low" never needs the watchdog
+      autoDowngraded = q === "low";
       accDt = 0;
       accN = 0;
       badWindows = 0;
@@ -565,10 +638,10 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       controls.reset();
     };
 
-    // 4. CONSTELLATION
+    // 4. CONSTELLATION (LiDAR) + ALTERNATIVE HOLO MESHES
 
-    const initialGeo = buildConstellationPointCloud(spec);
-    let zoneAttr = initialGeo.getAttribute("aZone") as THREE.BufferAttribute;
+    const initialAssets = buildBodyAssets(spec);
+    let zoneAttr = initialAssets.pointGeo.getAttribute("aZone") as THREE.BufferAttribute;
 
     const uColors: THREE.Vector3[] = [
       new THREE.Vector3(...DUST),
@@ -601,31 +674,98 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       depthWrite: false,
     });
 
-    const pointCloud = new THREE.Points(initialGeo, constellationMat);
+    const pointCloud = new THREE.Points(initialAssets.pointGeo, constellationMat);
     scene.add(pointCloud);
 
-    // 4b. PROFILE CHANGES: swap ONLY the geometry (scene / renderer / controls / material stay)
+    // Holo Mesh group sharing the exact same geometries and anatomical centers
+    const holoGroup = new THREE.Group();
+    const holoEntries: {
+      id: string;
+      zoneNum: number;
+      mesh: THREE.Mesh;
+      mat: THREE.ShaderMaterial;
+    }[] = [];
+
+    const holoDefs: { id: string; key: keyof BodyGeometries; order: number }[] = [
+      { id: "bones", key: "skeleton", order: 0 },
+      { id: "brain", key: "brain", order: 1 },
+      { id: "eyes", key: "eyes", order: 1 },
+      { id: "heart", key: "heart", order: 1 },
+      { id: "lungs", key: "lungs", order: 1 },
+      { id: "radiation", key: "shell", order: 2 },
+    ];
+
+    for (const def of holoDefs) {
+      const zoneNum = ZONE_INDEX_MAP[def.id];
+      const mat = new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: { value: 0 },
+          uBeat: { value: 0 },
+          uBreath: { value: 0 },
+          uZoneNum: { value: zoneNum },
+          uCenter: { value: (initialAssets.centers[def.id] ?? new THREE.Vector3()).clone() },
+          uColor: { value: uColors[zoneNum].clone() },
+          uSelected: { value: 0.0 },
+          uHovered: { value: 0.0 },
+          uRadiationCrit: { value: 0.0 },
+          uBodyHeight: { value: spec.heightM },
+        },
+        vertexShader: HOLO_VERT,
+        fragmentShader: HOLO_FRAG,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthTest: true,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(initialAssets.geometries[def.key], mat);
+      mesh.renderOrder = def.order;
+      mesh.userData.zoneId = def.id;
+      mesh.userData.zoneNum = zoneNum;
+      holoGroup.add(mesh);
+      holoEntries.push({ id: def.id, zoneNum, mesh, mat });
+    }
+    scene.add(holoGroup);
+
+    const syncVisibility = (mode: BodyRenderMode) => {
+      pointCloud.visible = mode === "lidar";
+      holoGroup.visible = mode === "holo";
+    };
+    syncVisibility(propsRef.current.renderMode);
+    applyRenderModeRef.current = syncVisibility;
+
+    // 4b. PROFILE CHANGES: swap geometries on both representations
 
     const rebuild = (next: BodyProfile) => {
       const key = profileKey(next);
       if (key === builtKey) return;
 
-      let nextGeo: THREE.BufferGeometry;
       const nextSpec = deriveAnatomy(next);
+      let nextAssets: ReturnType<typeof buildBodyAssets>;
       try {
-        nextGeo = buildConstellationPointCloud(nextSpec);
+        nextAssets = buildBodyAssets(nextSpec);
       } catch (e) {
         console.error("SELENA: body geometry rebuild failed, keeping the previous model", e);
         return;
       }
 
       const prevGeo = pointCloud.geometry;
-      pointCloud.geometry = nextGeo;
-      zoneAttr = nextGeo.getAttribute("aZone") as THREE.BufferAttribute;
-      prevGeo.dispose(); // release GPU buffers of the old cloud
-      pointCloud.scale.set(1, 1, 1); // the live preview is now baked into the geometry
+      pointCloud.geometry = nextAssets.pointGeo;
+      zoneAttr = nextAssets.pointGeo.getAttribute("aZone") as THREE.BufferAttribute;
+      prevGeo.dispose();
+      pointCloud.scale.set(1, 1, 1);
 
-      // Keep the user's orbit angle, re-frame for the new height.
+      for (let idx = 0; idx < holoDefs.length; idx++) {
+        const def = holoDefs[idx];
+        const entry = holoEntries[idx];
+        const oldMeshGeo = entry.mesh.geometry;
+        entry.mesh.geometry = nextAssets.geometries[def.key];
+        oldMeshGeo.dispose();
+        entry.mat.uniforms.uCenter.value.copy(nextAssets.centers[def.id] ?? new THREE.Vector3());
+        entry.mat.uniforms.uBodyHeight.value = nextSpec.heightM;
+      }
+      holoGroup.scale.set(1, 1, 1);
+
       const kOld = spec.heightM / REF_HEIGHT_M;
       const kNew = nextSpec.heightM / REF_HEIGHT_M;
       const newTarget = new THREE.Vector3(0, 1.05 * kNew, 0);
@@ -648,20 +788,23 @@ export const BodyModel: React.FC<BodyModelProps> = ({
     const preview = (p: BodyProfile | undefined) => {
       if (!p || profileKey(p) === builtKey) {
         pointCloud.scale.set(1, 1, 1);
+        holoGroup.scale.set(1, 1, 1);
         return;
       }
       const [sx, sy, sz] = previewScale(spec, deriveAnatomy(p));
-      pointCloud.scale.set(sx, sy, sz); // about the origin: feet stay on y = 0
+      pointCloud.scale.set(sx, sy, sz);
+      holoGroup.scale.set(sx, sy, sz);
     };
 
     applyGeometryRef.current = rebuild;
     applyPreviewRef.current = preview;
 
-    // 5. PICKING
+    // 5. PICKING (works identically in LiDAR and Holo Mesh modes)
 
     const raycaster = new THREE.Raycaster();
     raycaster.params.Points.threshold = 0.02;
     const mouse = new THREE.Vector2();
+    const holoMeshes = holoEntries.map((e) => e.mesh);
 
     const updateMouse = (e: PointerEvent) => {
       const rect = dom.getBoundingClientRect();
@@ -669,19 +812,27 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     };
 
-    /** Returns { id, zoneNum } for the highest-priority zone under the cursor. */
     const pick = (): { id: string; zoneNum: number } | null => {
       raycaster.setFromCamera(mouse, camera);
-      const hits = raycaster.intersectObject(pointCloud, false);
-      if (!hits.length) return null;
-
       const found = new Set<string>();
-      for (const h of hits) {
-        if (h.index === undefined) continue;
-        const zNum = Math.round(zoneAttr.getX(h.index));
-        const id = INDEX_TO_ZONE[zNum];
-        if (id) found.add(id);
+
+      if (propsRef.current.renderMode === "holo") {
+        const hits = raycaster.intersectObjects(holoMeshes, false);
+        for (const h of hits) {
+          const id = h.object.userData.zoneId as string | undefined;
+          if (id) found.add(id);
+        }
+      } else {
+        const hits = raycaster.intersectObject(pointCloud, false);
+        for (const h of hits) {
+          if (h.index === undefined) continue;
+          const zNum = Math.round(zoneAttr.getX(h.index));
+          const id = INDEX_TO_ZONE[zNum];
+          if (id) found.add(id);
+        }
       }
+
+      if (!found.size) return null;
       for (const id of PICK_PRIORITY) {
         if (found.has(id)) return { id, zoneNum: ZONE_INDEX_MAP[id] };
       }
@@ -702,8 +853,6 @@ export const BodyModel: React.FC<BodyModelProps> = ({
     const onPointerUp = (e: PointerEvent) => {
       if (e.button !== 0 || !downValid) return;
       downValid = false;
-
-      // A drag orbits the camera, it is not a click
       if (Math.hypot(e.clientX - downX, e.clientY - downY) > 5) return;
 
       updateMouse(e);
@@ -716,6 +865,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
     let lastPickAt = 0;
     let lastEvent: PointerEvent | null = null;
     let lastHover: string | null = null;
+    let hoveredZoneNum = -1.0;
 
     const runPick = (now: number) => {
       if (!lastEvent) {
@@ -735,14 +885,15 @@ export const BodyModel: React.FC<BodyModelProps> = ({
 
       if (id !== lastHover) {
         lastHover = id;
+        hoveredZoneNum = hit ? hit.zoneNum : -1.0;
         setHoveredZone(id);
         dom.style.cursor = id ? "pointer" : "grab";
-        constellationMat.uniforms.uHoveredZone.value = hit ? hit.zoneNum : -1.0;
+        constellationMat.uniforms.uHoveredZone.value = hoveredZoneNum;
       }
     };
 
     const onPointerMove = (e: PointerEvent) => {
-      if (e.buttons !== 0) return; // orbiting
+      if (e.buttons !== 0) return;
       lastEvent = e;
       if (moveQueued) return;
       moveQueued = true;
@@ -754,6 +905,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       moveQueued = false;
       lastEvent = null;
       lastHover = null;
+      hoveredZoneNum = -1.0;
       setHoveredZone(null);
       constellationMat.uniforms.uHoveredZone.value = -1.0;
       dom.style.cursor = "grab";
@@ -806,47 +958,63 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       reqId = requestAnimationFrame(animate);
 
       const time = clock.getElapsedTime();
-      const { selected: activeSel, zones: curZones, radiationLevel: radLv } =
-        propsRef.current;
+      const {
+        selected: activeSel,
+        zones: curZones,
+        radiationLevel: radLv,
+        renderMode: mode,
+      } = propsRef.current;
 
       controls.update();
 
-      const u = constellationMat.uniforms;
-      u.uTime.value = time;
-      u.uBeat.value = heartbeat(time);
-      u.uBreath.value = breathing(time);
-      u.uCamDist.value = camera.position.distanceTo(controls.target);
-      u.uSelectedZone.value = ZONE_INDEX_MAP[activeSel] ?? -1.0;
-      u.uRadiationCrit.value = radLv === "critical" ? 1.0 : 0.0;
+      const beat = heartbeat(time);
+      const breath = breathing(time);
+      const selNum = ZONE_INDEX_MAP[activeSel] ?? -1.0;
+      const radCrit = radLv === "critical" ? 1.0 : 0.0;
 
-      // Shell: silver dust, gently tinted by radiation status (contour stays readable)
+      // Update zone colors shared by both render modes
       setLevelColor(
         uColors[0],
         DUST,
         radLv,
         radLv === "nominal" ? 0 : radLv === "watch" ? 0.35 : 0.5,
       );
-
-      // Organs: pure status colour
       for (let i = 1; i <= 4; i++) {
         const zone = curZones.find((z) => z.id === INDEX_TO_ZONE[i]);
         const level: Level = zone?.level ?? "nominal";
         uColors[i].set(...COLOR_VEC[level]);
       }
-
-      // Skeleton: silver blended with its status colour
       const bones = curZones.find((z) => z.id === "bones");
       setLevelColor(uColors[5], DUST, bones?.level ?? "nominal", 0.5);
 
-      // Backdrop frame-rate watchdog: if the Earth stays heavy for ~3 s of measured frames,
-      // fall back to its "low" path once. Skipped while textures are still being generated.
+      if (mode === "lidar") {
+        const u = constellationMat.uniforms;
+        u.uTime.value = time;
+        u.uBeat.value = beat;
+        u.uBreath.value = breath;
+        u.uCamDist.value = camera.position.distanceTo(controls.target);
+        u.uSelectedZone.value = selNum;
+        u.uRadiationCrit.value = radCrit;
+      } else {
+        for (const entry of holoEntries) {
+          const mu = entry.mat.uniforms;
+          mu.uTime.value = time;
+          mu.uBeat.value = beat;
+          mu.uBreath.value = breath;
+          mu.uColor.value.copy(uColors[entry.zoneNum]);
+          mu.uSelected.value = entry.zoneNum === selNum ? 1.0 : 0.0;
+          mu.uHovered.value = entry.zoneNum === hoveredZoneNum ? 1.0 : 0.0;
+          mu.uRadiationCrit.value = radCrit;
+        }
+      }
+
       const dt = time - lastFrameT;
       lastFrameT = time;
       if (!autoDowngraded && earth.ready && earth.getQuality() === "high" && time > 4) {
         accDt += Math.min(dt, 0.25);
         accN++;
         if (accN >= 90) {
-          badWindows = accDt / accN > 0.036 ? badWindows + 1 : 0; // below ~28 fps
+          badWindows = accDt / accN > 0.036 ? badWindows + 1 : 0;
           accDt = 0;
           accN = 0;
           if (badWindows >= 2) {
@@ -857,7 +1025,6 @@ export const BodyModel: React.FC<BodyModelProps> = ({
         }
       }
 
-      // Pass 1: black space, stars, Earth + atmosphere. Pass 2: the LiDAR body on top.
       renderer.clear();
       earth.update(time, controls.getAzimuthalAngle());
       earth.render(renderer);
@@ -877,6 +1044,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       applyGeometryRef.current = () => {};
       applyPreviewRef.current = () => {};
       applyEarthQualityRef.current = () => {};
+      applyRenderModeRef.current = () => {};
 
       dom.removeEventListener("pointerdown", onPointerDown);
       dom.removeEventListener("pointerup", onPointerUp);
@@ -885,8 +1053,12 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       dom.removeEventListener("dblclick", onDoubleClick);
 
       controls.dispose();
-      pointCloud.geometry.dispose(); // the CURRENT geometry (it may have been swapped)
+      pointCloud.geometry.dispose();
       constellationMat.dispose();
+      for (const entry of holoEntries) {
+        entry.mesh.geometry.dispose();
+        entry.mat.dispose();
+      }
       earth.dispose();
 
       renderer.dispose();
@@ -898,28 +1070,26 @@ export const BodyModel: React.FC<BodyModelProps> = ({
     };
   }, []);
 
-  // Apply a changed earthQuality prop (declared after the mount effect, so the ref is wired by then).
   useEffect(() => {
     earthQualityRef.current = earthQuality;
     applyEarthQualityRef.current(earthQuality);
   }, [earthQuality]);
 
-  // Rebuild the point cloud when the committed profile changes (no-op if the key is unchanged).
+  useEffect(() => {
+    applyRenderModeRef.current(renderMode);
+  }, [renderMode]);
+
   const geoKey = profileKey(profile);
   useEffect(() => {
     applyGeometryRef.current(profile);
   }, [geoKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cheap live preview from the slider draft. Runs after the rebuild effect of the same commit.
   const previewKey = previewProfile ? profileKey(previewProfile) : "";
   useEffect(() => {
     applyPreviewRef.current(previewProfile);
   }, [previewKey, geoKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const t = I18N[lang];
-
-  const mono =
-    'ui-monospace, "JetBrains Mono", "IBM Plex Mono", SFMono-Regular, Menlo, Consolas, monospace';
 
   const items = [
     { id: "brain", label: lang === "ru" ? "Мозг" : "Brain" },
@@ -948,10 +1118,9 @@ export const BodyModel: React.FC<BodyModelProps> = ({
         userSelect: "none",
       }}
     >
-      {/* Канвас монтируется сюда; он absolute и не влияет на раскладку */}
       <div ref={mountRef} style={{ position: "absolute", inset: 0 }} />
 
-      {/* Верхняя телеметрия */}
+      {/* Top telemetry caption */}
       <div
         style={{
           position: "absolute",
@@ -959,82 +1128,131 @@ export const BodyModel: React.FC<BodyModelProps> = ({
           left: 16,
           display: "flex",
           flexDirection: "column",
-          gap: 4,
+          gap: 3,
           pointerEvents: "none",
-          fontFamily: mono,
+          fontFamily: "var(--sans)",
         }}
       >
         <span
           style={{
-            fontSize: 10,
-            letterSpacing: "0.18em",
+            fontSize: 10.5,
+            letterSpacing: "0.06em",
             textTransform: "uppercase",
-            color: "#5d6d76",
+            color: "var(--faint)",
           }}
         >
-          {lang === "ru"
-            ? "LiDAR-созвездие человека"
-            : "Celestial LiDAR Constellation Telemetry"}
+          {renderMode === "lidar"
+            ? lang === "ru"
+              ? "LiDAR-созвездие тела"
+              : "LiDAR constellation scan"
+            : lang === "ru"
+              ? "Голографическая модель тела"
+              : "Holographic anatomy mesh"}
         </span>
 
         <span
           style={{
-            fontSize: 12,
+            fontSize: 12.5,
+            fontWeight: 500,
             color: "#43c0ae",
             display: "flex",
             alignItems: "center",
-            gap: 6,
+            gap: 7,
           }}
         >
           <span
             style={{
-              width: 8,
-              height: 8,
+              width: 7,
+              height: 7,
               borderRadius: "50%",
               background: "#43c0ae",
-              boxShadow: "0 0 8px #43c0ae",
+              boxShadow: "0 0 0 3px rgba(67, 192, 174, 0.18)",
               display: "inline-block",
             }}
           />
           {hoveredZone
-            ? t.zones[hoveredZone]?.name ?? hoveredZone.toUpperCase()
+            ? t.zones[hoveredZone]?.name ?? hoveredZone
             : lang === "ru"
-              ? "Вращайте модель · Нажмите на орган"
-              : "Rotate model · Click an organ"}
+              ? "Вращайте модель · нажмите на орган"
+              : "Rotate model · click an organ"}
         </span>
       </div>
 
-      {/* Сброс камеры */}
-      <div style={{ position: "absolute", top: 12, right: 16 }}>
-        <button
-          onClick={() => resetCameraRef.current()}
-          style={{
-            padding: "5px 10px",
-            fontFamily: mono,
-            fontSize: 10,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color: "#cbd5e1",
-            background: "rgba(15,25,34,0.6)",
-            border: "1px solid rgba(100,116,139,0.6)",
-            cursor: "pointer",
-          }}
-        >
-          {lang === "ru" ? "⟲ Сброс вида" : "⟲ Reset View"}
-        </button>
-      </div>
-
-      {/* Быстрый выбор органов */}
+      {/* Mode toggle + Reset view */}
       <div
         style={{
           position: "absolute",
-          left: 16,
-          right: 16,
+          top: 12,
+          right: 14,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        <div
+          style={{
+            display: "inline-flex",
+            border: "1px solid rgba(170, 200, 212, 0.24)",
+            background: "rgba(9, 16, 23, 0.78)",
+          }}
+        >
+          {(
+            [
+              { id: "lidar", label: "LiDAR" },
+              { id: "holo", label: "Holo" },
+            ] as const
+          ).map((m) => {
+            const active = renderMode === m.id;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setRenderMode(m.id)}
+                style={{
+                  padding: "5px 9px",
+                  fontFamily: "var(--sans)",
+                  fontSize: 11,
+                  fontWeight: active ? 600 : 400,
+                  color: active ? "#43c0ae" : "#9aa9b2",
+                  background: active ? "rgba(67, 192, 174, 0.14)" : "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                {m.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => resetCameraRef.current()}
+          style={{
+            padding: "5px 10px",
+            fontFamily: "var(--sans)",
+            fontSize: 11,
+            color: "#cbd5e1",
+            background: "rgba(9, 16, 23, 0.78)",
+            border: "1px solid rgba(170, 200, 212, 0.24)",
+            cursor: "pointer",
+          }}
+        >
+          {lang === "ru" ? "⟲ Сброс вида" : "⟲ Reset view"}
+        </button>
+      </div>
+
+      {/* Quick zone selector */}
+      <div
+        style={{
+          position: "absolute",
+          left: 14,
+          right: 14,
           bottom: 12,
           display: "flex",
           flexWrap: "wrap",
           justifyContent: "center",
-          gap: 6,
+          gap: 5,
         }}
       >
         {items.map((item) => {
@@ -1049,21 +1267,20 @@ export const BodyModel: React.FC<BodyModelProps> = ({
           return (
             <button
               key={item.id}
+              type="button"
               onClick={() => onSelect(item.id)}
               style={{
                 padding: "5px 10px",
-                fontFamily: mono,
-                fontSize: 10,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
+                fontFamily: "var(--sans)",
+                fontSize: 11,
+                fontWeight: isSelected ? 600 : 400,
                 cursor: "pointer",
-                color: isSelected ? c : "#94a3ab",
+                color: isSelected ? c : "#9aa9b2",
                 background: isSelected
-                  ? "rgba(15,25,34,0.85)"
-                  : "rgba(7,12,17,0.7)",
-                border: `1px solid ${isSelected ? c : "rgba(100,116,139,0.35)"}`,
-                boxShadow: isSelected ? `0 0 12px ${c}66` : "none",
-                transition: "all 0.15s",
+                  ? "rgba(13, 21, 29, 0.88)"
+                  : "rgba(7, 12, 17, 0.72)",
+                border: `1px solid ${isSelected ? c : "rgba(170, 200, 212, 0.2)"}`,
+                transition: "border-color 0.15s, color 0.15s",
               }}
             >
               {item.label}
