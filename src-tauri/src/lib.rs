@@ -16,10 +16,12 @@ use std::time::Instant;
 use tauri::{AppHandle, State};
 
 mod analytics;
+mod crew_profile;
 mod importer;
 mod lexicon;
 mod mission_log;
 mod profile;
+mod workout_log;
 
 const MISSION_DAY: u32 = 78;
 const COMMS_DELAY_MIN: u32 = 22;
@@ -723,7 +725,19 @@ pub fn run() {
             mission_log::reset_mission_log,
             analytics::get_mind_analytics,
             importer::import_device_log,
-            importer::export_houston_report
+            importer::export_houston_report,
+            crew_profile::get_crew_profile,
+            crew_profile::save_crew_profile,
+            crew_profile::reset_crew_profile,
+            workout_log::get_exercise_catalog,
+            workout_log::get_workout_day,
+            workout_log::seed_default_workout_day,
+            workout_log::add_workout_entry,
+            workout_log::toggle_workout_entry,
+            workout_log::delete_workout_entry,
+            workout_log::add_nutrition_entry,
+            workout_log::delete_nutrition_entry,
+            workout_log::set_day_eva_hours
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
