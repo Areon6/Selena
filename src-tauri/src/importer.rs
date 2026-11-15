@@ -24,6 +24,11 @@ struct ParsedDeviceRow {
     ppco2: Option<f64>,
     sleep_hours: Option<f64>,
     dose_usv_h: Option<f64>,
+    mood: Option<u8>,
+    energy: Option<u8>,
+    stress: Option<u8>,
+    tags: Option<Vec<String>>,
+    note: Option<String>,
 }
 
 impl ParsedDeviceRow {
@@ -35,6 +40,11 @@ impl ParsedDeviceRow {
             || self.ppco2.is_some()
             || self.sleep_hours.is_some()
             || self.dose_usv_h.is_some()
+            || self.mood.is_some()
+            || self.energy.is_some()
+            || self.stress.is_some()
+            || self.note.is_some()
+            || self.tags.as_ref().is_some_and(|t| !t.is_empty())
     }
 }
 
@@ -227,13 +237,12 @@ fn parse_csv(raw: &str) -> Result<(Vec<ParsedDeviceRow>, Vec<String>, usize), St
         };
         row.day = day;
 
-        if let (Some(sys), Some(dia)) = (row.bp_sys, row.bp_dia) {
-            if sys <= dia {
+        if let (Some(sys), Some(dia)) = (row.bp_sys, row.bp_dia)
+            && sys <= dia {
                 skipped += 1;
                 warnings.push(format!("Line {line_no}: bp_sys ({sys}) must exceed bp_dia ({dia})"));
                 continue;
             }
-        }
         if !row.has_any_metric() {
             skipped += 1;
             warnings.push(format!("Line {line_no}: no physiological metrics provided"));
@@ -264,6 +273,68 @@ fn json_opt_f64(
         }
     }
     Ok(None)
+}
+
+fn json_opt_scale(
+    map: &serde_json::Map<String, Value>,
+    key: &str,
+) -> Result<Option<u8>, String> {
+    let Some(val) = map.get(key) else {
+        return Ok(None);
+    };
+    if val.is_null() {
+        return Ok(None);
+    }
+    let n = val
+        .as_u64()
+        .ok_or_else(|| format!("{key} must be an integer 1..=5"))?;
+    if !(1..=5).contains(&n) {
+        return Err(format!("{key} ({n}) out of accepted range 1..=5"));
+    }
+    Ok(Some(n as u8))
+}
+
+fn json_opt_note(map: &serde_json::Map<String, Value>) -> Result<Option<String>, String> {
+    let Some(val) = map.get("note") else {
+        return Ok(None);
+    };
+    if val.is_null() {
+        return Ok(None);
+    }
+    let s = val.as_str().ok_or_else(|| "note must be a string".to_string())?;
+    let trimmed: String = s.trim().chars().take(500).collect();
+    if trimmed.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(trimmed))
+    }
+}
+
+fn json_opt_tags(map: &serde_json::Map<String, Value>) -> Result<Option<Vec<String>>, String> {
+    let Some(val) = map.get("tags") else {
+        return Ok(None);
+    };
+    if val.is_null() {
+        return Ok(None);
+    }
+    let arr = val
+        .as_array()
+        .ok_or_else(|| "tags must be an array of strings".to_string())?;
+    let mut out = Vec::new();
+    for item in arr {
+        let s = item
+            .as_str()
+            .ok_or_else(|| "each tag must be a string".to_string())?;
+        let t = s.trim();
+        if !t.is_empty() {
+            out.push(t.chars().take(40).collect());
+        }
+    }
+    if out.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(out))
+    }
 }
 
 fn parse_json(raw: &str) -> Result<(Vec<ParsedDeviceRow>, Vec<String>, usize), String> {
@@ -327,15 +398,19 @@ fn parse_json(raw: &str) -> Result<(Vec<ParsedDeviceRow>, Vec<String>, usize), S
             let hr = json_opt_f64(map, &["hr", "heartRate", "heart_rate", "pulse"], "hr", 30.0, 220.0)?;
             let bp_sys = json_opt_f64(map, &["bp_sys", "bpSys", "systolic"], "bp_sys", 60.0, 260.0)?;
             let bp_dia = json_opt_f64(map, &["bp_dia", "bpDia", "diastolic"], "bp_dia", 35.0, 160.0)?;
-            if let (Some(sys), Some(dia)) = (bp_sys, bp_dia) {
-                if sys <= dia {
+            if let (Some(sys), Some(dia)) = (bp_sys, bp_dia)
+                && sys <= dia {
                     return Err(format!("bp_sys ({sys}) must exceed bp_dia ({dia})"));
                 }
-            }
             let spo2 = json_opt_f64(map, &["spo2", "spO2"], "spo2", 70.0, 100.0)?;
             let ppco2 = json_opt_f64(map, &["ppco2", "ppCO2", "co2_mmhg", "co2Mmhg"], "ppco2 (mmHg)", 0.0, 25.0)?;
             let sleep_hours = json_opt_f64(map, &["sleep_h", "sleepH", "sleep_hours", "sleepHours", "sleep"], "sleep_h", 0.0, 16.0)?;
             let dose_usv_h = json_opt_f64(map, &["dose_usv", "doseUsv", "dose_usv_h", "doseUsvH", "dose"], "dose_usv (µSv/h)", 0.0, 50_000.0)?;
+            let mood = json_opt_scale(map, "mood")?;
+            let energy = json_opt_scale(map, "energy")?;
+            let stress = json_opt_scale(map, "stress")?;
+            let tags = json_opt_tags(map)?;
+            let note = json_opt_note(map)?;
 
             Ok(ParsedDeviceRow {
                 line: row_no,
@@ -347,6 +422,11 @@ fn parse_json(raw: &str) -> Result<(Vec<ParsedDeviceRow>, Vec<String>, usize), S
                 ppco2,
                 sleep_hours,
                 dose_usv_h,
+                mood,
+                energy,
+                stress,
+                tags,
+                note,
             })
         })();
 
@@ -399,6 +479,21 @@ fn merge_rows_into_log(
             if row.dose_usv_h.is_some() {
                 merged.dose_usv_h = row.dose_usv_h;
             }
+            if row.mood.is_some() {
+                merged.mood = row.mood;
+            }
+            if row.energy.is_some() {
+                merged.energy = row.energy;
+            }
+            if row.stress.is_some() {
+                merged.stress = row.stress;
+            }
+            if row.tags.is_some() {
+                merged.tags = row.tags;
+            }
+            if row.note.is_some() {
+                merged.note = row.note;
+            }
             merged.source = Some(DaySource::Import);
 
             match mission_log::sanitize_entry(merged) {
@@ -424,6 +519,11 @@ fn merge_rows_into_log(
                 ppco2: row.ppco2,
                 sleep_hours: row.sleep_hours,
                 dose_usv_h: row.dose_usv_h,
+                mood: row.mood,
+                energy: row.energy,
+                stress: row.stress,
+                tags: row.tags,
+                note: row.note,
                 ..Default::default()
             };
             match mission_log::sanitize_entry(entry) {
@@ -505,11 +605,10 @@ fn sanitize_filename(name: &str) -> String {
 }
 
 fn resolve_export_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    if let Ok(dl) = app.path().download_dir() {
-        if fs::create_dir_all(&dl).is_ok() {
+    if let Ok(dl) = app.path().download_dir()
+        && fs::create_dir_all(&dl).is_ok() {
             return Ok(dl);
         }
-    }
     let data = app
         .path()
         .app_data_dir()
@@ -540,7 +639,8 @@ pub fn export_houston_report(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mission_log::generate_sample_history;
+    use crate::lexicon::Sentiment;
+    use crate::mission_log::{DayLevel, generate_sample_history};
 
     #[test]
     fn parses_valid_csv_and_merges_into_empty_and_existing_days() {
@@ -565,7 +665,6 @@ day,hr,bp_sys,bp_dia,spo2,ppco2,sleep_h,dose_usv
         let (created, updated) =
             merge_rows_into_log(&mut log, rows, &mut merge_warns, &mut merge_skipped);
 
-        // Day 73 & 74 were empty in sample history; Day 75 already existed with psych note
         assert_eq!(created, 2);
         assert_eq!(updated, 1);
         assert_eq!(merge_skipped, 0);
@@ -573,7 +672,6 @@ day,hr,bp_sys,bp_dia,spo2,ppco2,sleep_h,dose_usv
         let d75 = log.entries.iter().find(|e| e.day == 75).unwrap();
         assert_eq!(d75.source, Some(DaySource::Import));
         assert_eq!(d75.hr, Some(71.0));
-        // Preserves existing crew note from sample history
         assert!(d75.note.as_deref().unwrap().contains("Quiet watch shift"));
     }
 
@@ -618,5 +716,62 @@ day,hr,bp_sys,bp_dia,ppco2,sleep_h,dose_usv
         assert!(warnings.is_empty());
         assert_eq!(rows[0].sleep_hours, Some(7.6));
         assert_eq!(rows[1].dose_usv_h, Some(45.0));
+    }
+
+    #[test]
+    fn handles_csv_bom_semicolon_na_cells_and_boundary_values() {
+        let csv = "\u{feff}day;hr;bp_sys;bp_dia;spo2;ppco2;sleep_h;dose_usv\n\
+                   1;30;60;35;70;0.0;0.0;0\n\
+                   78;220;260;160;100;25.0;16.0;50000\n\
+                   0;70;120;80;97;2.4;7.5;40\n\
+                   79;70;120;80;97;2.4;7.5;40\n\
+                   73;NA;120;120;97;2.4;7.5;40\n\
+                   74;70;120;80;97;25.1;7.5;40\n\
+                   75;70;120;80;97;2.4;7.5;50001\n";
+        let (rows, warnings, skipped) = parse_csv(csv).unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].day, 1);
+        assert_eq!(rows[1].day, 78);
+        assert_eq!(skipped, 5);
+        assert_eq!(warnings.len(), 5);
+    }
+
+    #[test]
+    fn imports_spe_json_with_note_tags_and_enriches_lexicon() {
+        let json = r#"[
+          {
+            "day": 76,
+            "hr": 102,
+            "bp_sys": 146,
+            "bp_dia": 92,
+            "spo2": 96.4,
+            "ppco2": 2.7,
+            "sleep_h": 4.9,
+            "dose_usv": 1850,
+            "mood": 2,
+            "stress": 5,
+            "tags": ["fatigue", "poor_sleep"],
+            "note": "Solar particle event alarm — 4 hours in storm shelter. Severe fatigue and headache."
+          }
+        ]"#;
+        let (rows, warnings, skipped) = parse_json(json).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(skipped, 0);
+        assert!(warnings.is_empty());
+
+        let mut log = MissionLog {
+            current_day: CURRENT_MISSION_DAY,
+            entries: generate_sample_history(),
+        };
+        let (created, updated) =
+            merge_rows_into_log(&mut log, rows, &mut Vec::new(), &mut 0);
+        assert_eq!(created, 1);
+        assert_eq!(updated, 0);
+
+        let d76 = log.entries.iter().find(|e| e.day == 76).unwrap();
+        assert_eq!(d76.level, Some(DayLevel::Critical));
+        assert_eq!(d76.sentiment, Some(Sentiment::Negative));
+        assert!(d76.themes.as_ref().unwrap().contains(&"fatigue_sleep".to_string()));
+        assert!(d76.themes.as_ref().unwrap().contains(&"cognitive_load".to_string()));
     }
 }

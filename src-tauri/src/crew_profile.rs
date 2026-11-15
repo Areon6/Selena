@@ -6,7 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
 const FILE_NAME: &str = "crew_profile.json";
@@ -97,48 +97,48 @@ fn file_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join(FILE_NAME))
 }
 
-fn save_to_disk(app: &AppHandle, profile: &CrewProfile) -> Result<(), String> {
-    let path = file_path(app)?;
+fn save_to_path(path: &Path, profile: &CrewProfile) -> Result<(), String> {
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir).map_err(|e| format!("cannot create data dir: {e}"))?;
     }
     let json = serde_json::to_string_pretty(profile).map_err(|e| format!("serialize failed: {e}"))?;
     let tmp = path.with_extension("json.tmp");
     fs::write(&tmp, json).map_err(|e| format!("write failed: {e}"))?;
-    fs::rename(&tmp, &path).map_err(|e| format!("rename failed: {e}"))?;
+    fs::rename(&tmp, path).map_err(|e| format!("rename failed: {e}"))?;
     Ok(())
 }
 
-fn load_or_init(app: &AppHandle) -> Result<CrewProfile, String> {
-    let path = file_path(app)?;
-    if path.exists() {
-        if let Ok(raw) = fs::read_to_string(&path) {
-            if let Ok(parsed) = serde_json::from_str::<CrewProfile>(&raw) {
-                return Ok(sanitize_crew_profile(parsed));
-            }
-        }
+fn load_from_path(path: &Path) -> Result<CrewProfile, String> {
+    if path.exists()
+        && let Ok(raw) = fs::read_to_string(path)
+        && let Ok(parsed) = serde_json::from_str::<CrewProfile>(&raw)
+    {
+        return Ok(sanitize_crew_profile(parsed));
     }
     let fresh = CrewProfile::default();
-    save_to_disk(app, &fresh)?;
+    save_to_path(path, &fresh)?;
     Ok(fresh)
 }
 
 #[tauri::command]
 pub fn get_crew_profile(app: AppHandle) -> Result<CrewProfile, String> {
-    load_or_init(&app)
+    let path = file_path(&app)?;
+    load_from_path(&path)
 }
 
 #[tauri::command]
 pub fn save_crew_profile(app: AppHandle, profile: CrewProfile) -> Result<CrewProfile, String> {
     let clean = sanitize_crew_profile(profile);
-    save_to_disk(&app, &clean)?;
+    let path = file_path(&app)?;
+    save_to_path(&path, &clean)?;
     Ok(clean)
 }
 
 #[tauri::command]
 pub fn reset_crew_profile(app: AppHandle) -> Result<CrewProfile, String> {
     let fresh = CrewProfile::default();
-    save_to_disk(&app, &fresh)?;
+    let path = file_path(&app)?;
+    save_to_path(&path, &fresh)?;
     Ok(fresh)
 }
 
@@ -205,5 +205,29 @@ mod tests {
         assert_eq!(clean.baseline_hr_bpm, 35.0);
         assert!(clean.baseline_sys_mmhg > clean.baseline_dia_mmhg);
         assert_eq!(clean.default_eva_hours, 0.0);
+    }
+
+    #[test]
+    fn corrupt_or_partial_json_on_disk_recovers_safely() {
+        let path = std::env::temp_dir().join(format!(
+            "selena_crew_corrupt_{}.json",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+
+        // 1. Truncated / corrupt JSON resets cleanly to defaults on disk
+        fs::write(&path, "{bad_json: [1, 2").unwrap();
+        let loaded = load_from_path(&path).unwrap();
+        assert_eq!(loaded, CrewProfile::default());
+        assert!(fs::read_to_string(&path).unwrap().contains("Flight Engineer"));
+
+        // 2. Partial JSON with out-of-range values uses serde defaults and sanitizes
+        fs::write(&path, r#"{"callsign":"  ARES-7 ","ageYears":15}"#).unwrap();
+        let partial = load_from_path(&path).unwrap();
+        assert_eq!(partial.callsign, "ARES-7");
+        assert_eq!(partial.age_years, 18);
+        assert_eq!(partial.role, "Flight Engineer");
+
+        let _ = fs::remove_file(&path);
     }
 }

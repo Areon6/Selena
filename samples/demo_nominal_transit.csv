@@ -1,0 +1,7 @@
+# SELENA Demo Export - Nominal Deep-Space Transit (Days 75-78)
+# Units: ppCO2 in mmHg (NASA-STD-3001 V2 6004 <= 3.0 mmHg), dose_usv in uSv/h (GCR background)
+day,hr,bp_sys,bp_dia,spo2,ppco2,sleep_h,dose_usv
+75,64,117,75,97.8,2.3,7.6,28
+76,65,118,76,97.7,2.4,7.8,29
+77,63,116,74,98.0,2.3,8.0,27
+78,66,119,76,97.6,2.5,7.5,30

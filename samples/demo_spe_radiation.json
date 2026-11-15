@@ -1,0 +1,47 @@
+[
+  {
+    "day": 74,
+    "hr": 86,
+    "bp_sys": 134,
+    "bp_dia": 84,
+    "spo2": 96.8,
+    "ppco2": 2.5,
+    "sleep_h": 6.4,
+    "dose_usv": 265,
+    "mood": 3,
+    "energy": 3,
+    "stress": 4,
+    "tags": ["poor_sleep"],
+    "note": "Solar storm watch alert. Elevated radiation dose rate; noisy shelter prep kept me awake."
+  },
+  {
+    "day": 76,
+    "hr": 102,
+    "bp_sys": 146,
+    "bp_dia": 92,
+    "spo2": 96.4,
+    "ppco2": 2.7,
+    "sleep_h": 4.9,
+    "dose_usv": 1850,
+    "mood": 2,
+    "energy": 2,
+    "stress": 5,
+    "tags": ["fatigue", "poor_sleep"],
+    "note": "Solar particle event alarm — 4 hours in storm shelter. Severe fatigue, headache, and high tension."
+  },
+  {
+    "day": 77,
+    "hr": 79,
+    "bp_sys": 128,
+    "bp_dia": 81,
+    "spo2": 97.1,
+    "ppco2": 2.4,
+    "sleep_h": 6.3,
+    "dose_usv": 240,
+    "mood": 3,
+    "energy": 3,
+    "stress": 4,
+    "tags": ["fatigue"],
+    "note": "Dose rate falling after shelter release; still exhausted from interrupted sleep."
+  }
+]

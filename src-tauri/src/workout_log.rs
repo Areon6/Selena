@@ -11,7 +11,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
 const FILE_NAME: &str = "workout_log.json";
@@ -515,30 +515,37 @@ fn file_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join(FILE_NAME))
 }
 
-fn load_store(app: &AppHandle) -> WorkoutLogStore {
-    let Ok(path) = file_path(app) else {
-        return WorkoutLogStore::default();
-    };
-    if path.exists() {
-        if let Ok(raw) = fs::read_to_string(&path) {
-            if let Ok(store) = serde_json::from_str::<WorkoutLogStore>(&raw) {
-                return store;
-            }
-        }
+fn load_store_from_path(path: &Path) -> WorkoutLogStore {
+    if path.exists()
+        && let Ok(raw) = fs::read_to_string(path)
+        && let Ok(store) = serde_json::from_str::<WorkoutLogStore>(&raw)
+    {
+        return store;
     }
     WorkoutLogStore::default()
 }
 
-fn save_store(app: &AppHandle, store: &WorkoutLogStore) -> Result<(), String> {
-    let path = file_path(app)?;
+fn load_store(app: &AppHandle) -> WorkoutLogStore {
+    let Ok(path) = file_path(app) else {
+        return WorkoutLogStore::default();
+    };
+    load_store_from_path(&path)
+}
+
+fn save_store_to_path(path: &Path, store: &WorkoutLogStore) -> Result<(), String> {
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir).map_err(|e| format!("cannot create data dir: {e}"))?;
     }
     let json = serde_json::to_string_pretty(store).map_err(|e| format!("serialize failed: {e}"))?;
     let tmp = path.with_extension("json.tmp");
     fs::write(&tmp, json).map_err(|e| format!("write failed: {e}"))?;
-    fs::rename(&tmp, &path).map_err(|e| format!("rename failed: {e}"))?;
+    fs::rename(&tmp, path).map_err(|e| format!("rename failed: {e}"))?;
     Ok(())
+}
+
+fn save_store(app: &AppHandle, store: &WorkoutLogStore) -> Result<(), String> {
+    let path = file_path(app)?;
+    save_store_to_path(&path, store)
 }
 
 // ── Tauri IPC commands ───────────────────────────────────────────────────────
@@ -780,5 +787,28 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn corrupt_json_on_disk_falls_back_to_empty_store_and_roundtrips() {
+        let path = std::env::temp_dir().join(format!(
+            "selena_workout_corrupt_{}.json",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+
+        // Corrupt JSON falls back safely without panicking
+        fs::write(&path, "{broken json").unwrap();
+        let fallback = load_store_from_path(&path);
+        assert_eq!(build_summary(78, fallback.days.get(&78)).total_sessions, 0);
+
+        // Atomic save + reload round-trip preserves entries
+        let mut store = WorkoutLogStore::default();
+        op_seed_default_day(&mut store, 78).unwrap();
+        save_store_to_path(&path, &store).unwrap();
+        let reloaded = load_store_from_path(&path);
+        assert_eq!(build_summary(78, reloaded.days.get(&78)).total_sessions, 4);
+
+        let _ = fs::remove_file(&path);
     }
 }

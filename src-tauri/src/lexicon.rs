@@ -229,4 +229,34 @@ mod tests {
         assert!(res.themes.contains(&"positive_recovery".to_string()));
         assert_eq!(res.sentiment, Sentiment::Positive);
     }
+    #[test]
+    fn empty_and_whitespace_inputs_are_neutral_with_no_themes() {
+        let empty = analyze(None, &[]);
+        assert!(empty.themes.is_empty());
+        assert_eq!(empty.sentiment, Sentiment::Neutral);
+
+        let ws = analyze(Some("   \n\t  "), &[]);
+        assert!(ws.themes.is_empty());
+        assert_eq!(ws.sentiment, Sentiment::Neutral);
+    }
+
+    #[test]
+    fn detects_russian_triggers_across_all_themes_and_spe_cues() {
+        let res = analyze(
+            Some("Тревога, буря, укрытие! Скучаю по дому, болит голова и туман, в экипаже напряжение и конфликт."),
+            &[],
+        );
+        assert!(res.themes.contains(&"isolation_family".to_string()));
+        assert!(res.themes.contains(&"cognitive_load".to_string()));
+        assert!(res.themes.contains(&"crew_interpersonal".to_string()));
+        assert_eq!(res.sentiment, Sentiment::Negative);
+
+        let mixed = analyze(
+            Some("Недосып и усталость, но бодрое настроение, восстановился и рад."),
+            &["calm".into()],
+        );
+        assert!(mixed.themes.contains(&"fatigue_sleep".to_string()));
+        assert!(mixed.themes.contains(&"positive_recovery".to_string()));
+        assert_eq!(mixed.sentiment, Sentiment::Mixed);
+    }
 }
